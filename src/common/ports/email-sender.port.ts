@@ -1,0 +1,25 @@
+/**
+ * Porta de envio de e-mail transacional.
+ * DIP: implementação concreta (SMTP, SES, etc.) vive na infraestrutura.
+ */
+export interface ContactMessageEmailData {
+  petName: string
+  senderName: string | null
+  senderPhone: string | null
+  senderEmail: string | null
+  message: string
+}
+
+export interface EmailSenderPort {
+  sendVerificationEmail(to: string, token: string): Promise<void>
+  sendPasswordResetEmail(to: string, token: string): Promise<void>
+  /** Envia a nova senha gerada por um admin (force reset). */
+  sendAdminPasswordResetEmail(to: string, newPassword: string): Promise<void>
+  sendTransferEmail(to: string, token: string): Promise<void>
+  sendContactMessageEmail(
+    to: string,
+    data: ContactMessageEmailData,
+  ): Promise<void>
+}
+
+export const EMAIL_SENDER_PORT = Symbol('EMAIL_SENDER_PORT')
