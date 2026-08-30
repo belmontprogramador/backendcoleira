@@ -21,6 +21,7 @@ describe('ListPlansUseCase', () => {
     plans = {
       findAll: jest.fn(),
       findById: jest.fn(),
+      findByIds: jest.fn(),
       findByCode: jest.fn(),
       findDefault: jest.fn(),
     }

@@ -23,6 +23,16 @@ export class PrismaPlanRepository implements PlanRepositoryPort {
     return model ? PlanMapper.toDomain(model) : null
   }
 
+  async findByIds(ids: string[]): Promise<Plan[]> {
+    if (ids.length === 0) {
+      return []
+    }
+    const models = await this.prisma.plan.findMany({
+      where: { id: { in: ids } },
+    })
+    return models.map(PlanMapper.toDomain)
+  }
+
   async findByCode(code: string): Promise<Plan | null> {
     const model = await this.prisma.plan.findUnique({ where: { code } })
     return model ? PlanMapper.toDomain(model) : null

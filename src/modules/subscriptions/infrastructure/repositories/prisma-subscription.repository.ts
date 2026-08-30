@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from '../../../../infrastructure/database/prisma.service'
+import { Prisma } from '../../../../generated/prisma/client'
+import type { SubscriptionStatus } from '../../../../generated/prisma/enums'
 import type { Subscription } from '../../domain/entities/subscription.entity'
-import type { SubscriptionRepositoryPort } from '../../domain/repositories/subscription.repository.port'
+import type {
+  ListSubscriptionsFilter,
+  SubscriptionRepositoryPort,
+} from '../../domain/repositories/subscription.repository.port'
 import { SubscriptionMapper } from '../mappers/subscription.mapper'
 
 /**
@@ -42,5 +47,39 @@ export class PrismaSubscriptionRepository implements SubscriptionRepositoryPort 
       orderBy: { current_period_end: 'desc' },
     })
     return model ? SubscriptionMapper.toDomain(model) : null
+  }
+
+  async list(filter: ListSubscriptionsFilter): Promise<Subscription[]> {
+    const models = await this.prisma.subscription.findMany({
+      where: this.buildWhere(filter),
+      skip: (filter.page - 1) * filter.limit,
+      take: filter.limit,
+      orderBy: { created_at: 'desc' },
+    })
+    return models.map(SubscriptionMapper.toDomain)
+  }
+
+  async count(filter: ListSubscriptionsFilter): Promise<number> {
+    return this.prisma.subscription.count({
+      where: this.buildWhere(filter),
+    })
+  }
+
+  private buildWhere(
+    filter: ListSubscriptionsFilter,
+  ): Prisma.SubscriptionWhereInput | undefined {
+    const conditions: Prisma.SubscriptionWhereInput[] = []
+
+    if (filter.status) {
+      conditions.push({ status: filter.status as SubscriptionStatus })
+    }
+    if (filter.planCode) {
+      conditions.push({ plan: { code: filter.planCode } })
+    }
+    if (filter.userId) {
+      conditions.push({ user_id: filter.userId })
+    }
+
+    return conditions.length > 0 ? { AND: conditions } : undefined
   }
 }

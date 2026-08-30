@@ -11,6 +11,8 @@ describe('GetSubscriptionUseCase', () => {
       findById: jest.fn(),
       findByUserId: jest.fn(),
       findActiveByUserId: jest.fn(),
+      list: jest.fn(),
+      count: jest.fn(),
     }
   })
 

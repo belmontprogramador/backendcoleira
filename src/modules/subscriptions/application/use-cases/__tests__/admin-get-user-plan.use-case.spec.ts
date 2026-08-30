@@ -15,10 +15,13 @@ describe('AdminGetUserPlanUseCase', () => {
       findById: jest.fn(),
       findByUserId: jest.fn(),
       findActiveByUserId: jest.fn(),
+      list: jest.fn(),
+      count: jest.fn(),
     }
     plans = {
       findAll: jest.fn(),
       findById: jest.fn(),
+      findByIds: jest.fn(),
       findByCode: jest.fn(),
       findDefault: jest.fn(),
     }

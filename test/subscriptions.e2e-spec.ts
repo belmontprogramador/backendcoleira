@@ -181,6 +181,28 @@ describe('Planos, Assinaturas e Dados Premium (e2e)', () => {
     await approveViaWebhook(providerPaymentId, `ev-${providerPaymentId}`)
   }
 
+  async function createAdmin(): Promise<string> {
+    const role = await prisma.role.create({ data: { name: 'ADMIN' } })
+    const user = await prisma.user.create({
+      data: {
+        id: 'admin-1',
+        name: 'Admin',
+        email: 'admin@email.com',
+        password_hash: await bcrypt.hash('adminSenha123', 12),
+        status: 'ACTIVE',
+      },
+    })
+    await prisma.userRole.create({
+      data: { user_id: user.id, role_id: role.id },
+    })
+
+    const res = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'admin@email.com', password: 'adminSenha123' })
+      .expect(200)
+    return (res.body as AuthBody).accessToken
+  }
+
   it('GET /plans lista Basic (default) e Premium com features', async () => {
     const token = await createUser('u1', 'dono1@email.com', 'senhaForte123')
     const res = await request(app.getHttpServer())
@@ -400,6 +422,87 @@ describe('Planos, Assinaturas e Dados Premium (e2e)', () => {
     await request(app.getHttpServer())
       .get(`/pets/${petId}/contacts`)
       .set('Authorization', `Bearer ${tokenB}`)
+      .expect(403)
+  })
+
+  it('GET /admin/subscriptions lista assinaturas com owner + plano (envelope)', async () => {
+    const token1 = await createUser('u1', 'dono1@email.com', 'senhaForte123')
+    await activatePremium(token1)
+    const token2 = await createUser('u2', 'dono2@email.com', 'senhaForte123')
+    await activatePremium(token2)
+
+    const admin = await createAdmin()
+    const res = await request(app.getHttpServer())
+      .get('/admin/subscriptions')
+      .set('Authorization', `Bearer ${admin}`)
+      .expect(200)
+
+    const body = res.body as {
+      data: Array<{
+        status: string
+        owner: { email: string }
+        plan: { code: string }
+      }>
+      meta: { total: number; page: number; limit: number; totalPages: number }
+    }
+    expect(body.meta.total).toBe(2)
+    expect(body.data).toHaveLength(2)
+    expect(body.data.map(s => s.owner.email).sort()).toEqual([
+      'dono1@email.com',
+      'dono2@email.com',
+    ])
+    for (const s of body.data) {
+      expect(s.plan.code).toBe('PREMIUM')
+      expect(s.status).toBe('ACTIVE')
+    }
+  })
+
+  it('GET /admin/subscriptions filtra por status', async () => {
+    const token = await createUser('u1', 'dono1@email.com', 'senhaForte123')
+    await activatePremium(token)
+    await request(app.getHttpServer())
+      .post('/subscriptions/cancel')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(201)
+
+    const admin = await createAdmin()
+    const res = await request(app.getHttpServer())
+      .get('/admin/subscriptions?status=CANCELLED')
+      .set('Authorization', `Bearer ${admin}`)
+      .expect(200)
+    const body = res.body as { data: Array<{ status: string }> }
+    expect(body.data).toHaveLength(1)
+    expect(body.data[0].status).toBe('CANCELLED')
+  })
+
+  it('POST /admin/subscriptions/:userId/cancel cancela (204)', async () => {
+    const token = await createUser('u1', 'dono1@email.com', 'senhaForte123')
+    await activatePremium(token)
+
+    const admin = await createAdmin()
+    await request(app.getHttpServer())
+      .post('/admin/subscriptions/u1/cancel')
+      .set('Authorization', `Bearer ${admin}`)
+      .expect(204)
+
+    const res = await request(app.getHttpServer())
+      .get('/admin/subscriptions?userId=u1')
+      .set('Authorization', `Bearer ${admin}`)
+      .expect(200)
+    const body = res.body as { data: Array<{ status: string }> }
+    expect(body.data).toHaveLength(1)
+    expect(body.data[0].status).toBe('CANCELLED')
+  })
+
+  it('GET /admin/subscriptions sem token retorna 401', async () => {
+    await request(app.getHttpServer()).get('/admin/subscriptions').expect(401)
+  })
+
+  it('GET /admin/subscriptions com role USER retorna 403', async () => {
+    const token = await createUser('u1', 'dono1@email.com', 'senhaForte123')
+    await request(app.getHttpServer())
+      .get('/admin/subscriptions')
+      .set('Authorization', `Bearer ${token}`)
       .expect(403)
   })
 })

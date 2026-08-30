@@ -14,6 +14,8 @@ describe('CancelSubscriptionUseCase', () => {
       findById: jest.fn(),
       findByUserId: jest.fn(),
       findActiveByUserId: jest.fn(),
+      list: jest.fn(),
+      count: jest.fn(),
     }
     audit = { log: jest.fn() }
   })

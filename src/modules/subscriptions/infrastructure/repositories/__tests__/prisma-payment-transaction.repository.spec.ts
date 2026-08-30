@@ -4,6 +4,7 @@ import { PrismaService } from '../../../../../infrastructure/database/prisma.ser
 import { PrismaPaymentTransactionRepository } from '../prisma-payment-transaction.repository'
 import { PaymentTransaction } from '../../../domain/entities/payment-transaction.entity'
 import { Price } from '../../../../../common/value-objects/price.vo'
+import { cleanDatabase } from '../../../../../../test/helpers/clean-database'
 
 describe('PaymentTransaction — repositório (integração)', () => {
   let prisma: PrismaService
@@ -44,18 +45,12 @@ describe('PaymentTransaction — repositório (integração)', () => {
   })
 
   afterAll(async () => {
-    await prisma.paymentTransaction.deleteMany()
-    await prisma.subscription.deleteMany()
-    await prisma.plan.deleteMany()
-    await prisma.user.deleteMany()
+    await cleanDatabase(prisma)
     await prisma.$disconnect()
   })
 
   beforeEach(async () => {
-    await prisma.paymentTransaction.deleteMany()
-    await prisma.subscription.deleteMany()
-    await prisma.plan.deleteMany()
-    await prisma.user.deleteMany()
+    await cleanDatabase(prisma)
   })
 
   it('save persiste e findByProviderPaymentId recupera', async () => {

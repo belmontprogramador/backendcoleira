@@ -8,6 +8,7 @@ import type { Plan } from '../entities/plan.entity'
 export interface PlanRepositoryPort {
   findAll(): Promise<Plan[]>
   findById(id: string): Promise<Plan | null>
+  findByIds(ids: string[]): Promise<Plan[]>
   findByCode(code: string): Promise<Plan | null>
   findDefault(): Promise<Plan | null>
 }
