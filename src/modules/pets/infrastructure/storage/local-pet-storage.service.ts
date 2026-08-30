@@ -6,10 +6,12 @@ import type { PetStoragePort } from './pet-storage.port'
 const BASE_DIR = './uploads/pets'
 
 /**
- * Implementação de storage de fotos local (desenvolvimento).
+ * Implementação de storage de fotos local.
  *
- * Grava em `./uploads/pets/{key}` e retorna URL local relativa. Em produção,
- * substituir por `S3PetStorageService` — a porta `PetStoragePort` permanece.
+ * Grava em `./uploads/pets/{key}` e retorna o caminho relativo
+ * `/uploads/pets/{key}` (salvo no Postgres via `photo_url`). O backend serve
+ * os uploads em `/uploads/*` (static assets no `main.ts`); o front monta a
+ * URL absoluta com a base do backend.
  */
 @Injectable()
 export class LocalPetStorageService implements PetStoragePort {

@@ -1,11 +1,13 @@
 import { NestFactory } from '@nestjs/core'
+import { NestExpressApplication } from '@nestjs/platform-express'
+import { join } from 'node:path'
 import { Logger, LoggerErrorInterceptor } from 'nestjs-pino'
 import helmet from 'helmet'
 import { AppModule } from './app.module'
 import { envSchema } from './config/env.validation'
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
     rawBody: true,
   })
@@ -29,6 +31,13 @@ async function bootstrap(): Promise<void> {
   if (corsOrigins.length > 0) {
     app.enableCors({ origin: corsOrigins, credentials: true })
   }
+
+  // Serve as fotos dos pets (upload local em ./uploads).
+  // O `photoUrl` salvo no Postgres é relativo (ex.: /uploads/pets/{key});
+  // o front monta a URL absoluta usando a base do backend.
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/uploads',
+  })
 
   app.enableShutdownHooks()
 
