@@ -82,10 +82,25 @@ describe('NFC — repositórios (integração)', () => {
     expect(found?.id).toBe('batch-1')
   })
 
-  it('lista lotes', async () => {
+  it('lista lotes com paginação e filtro de status', async () => {
     await batchRepo.save(makeBatch())
-    const list = await batchRepo.list()
+
+    const list = await batchRepo.list({ page: 1, limit: 20 })
     expect(list).toHaveLength(1)
+
+    const filtered = await batchRepo.list({
+      status: 'PENDING',
+      page: 1,
+      limit: 20,
+    })
+    expect(filtered).toHaveLength(1)
+
+    const none = await batchRepo.list({
+      status: 'COMPLETED',
+      page: 1,
+      limit: 20,
+    })
+    expect(none).toHaveLength(0)
   })
 
   it('salva e recupera tag por id, publicId e uid', async () => {

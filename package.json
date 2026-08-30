@@ -22,6 +22,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
+    "bootstrap": "npm run db:up && prisma migrate deploy && prisma generate && npm run prisma:seed && npm run start:dev",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "postinstall": "prisma generate"

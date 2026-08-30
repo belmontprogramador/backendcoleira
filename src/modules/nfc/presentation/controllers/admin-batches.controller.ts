@@ -12,9 +12,12 @@ import { GenerateTagsUseCase } from '../../application/use-cases/generate-tags.u
 import { CompleteBatchUseCase } from '../../application/use-cases/complete-batch.use-case'
 import { CancelBatchUseCase } from '../../application/use-cases/cancel-batch.use-case'
 import { GetBatchUseCase } from '../../application/use-cases/get-batch.use-case'
+import { ListBatchesUseCase } from '../../application/use-cases/list-batches.use-case'
 import { BatchResponseMapper } from '../../application/mappers/batch-response.mapper'
 import { createBatchSchema } from '../../application/dtos/create-batch.schema'
 import type { CreateBatchDto } from '../../application/dtos/create-batch.schema'
+import { listBatchesSchema } from '../../application/dtos/list-batches.schema'
+import type { ListBatchesDto } from '../../application/dtos/list-batches.schema'
 import { cancelBatchSchema } from '../../application/dtos/cancel-batch.schema'
 import type { CancelBatchDto } from '../../application/dtos/cancel-batch.schema'
 import { Permissions } from '../../../../common/decorators/permissions.decorator'
@@ -30,10 +33,20 @@ export class AdminBatchesController {
   constructor(
     private readonly createBatch: CreateBatchUseCase,
     private readonly getBatch: GetBatchUseCase,
+    private readonly listBatches: ListBatchesUseCase,
     private readonly generateTags: GenerateTagsUseCase,
     private readonly completeBatch: CompleteBatchUseCase,
     private readonly cancelBatch: CancelBatchUseCase,
   ) {}
+
+  @Get()
+  @Permissions('tag:read')
+  async list(
+    @Query(new ZodValidationPipe(listBatchesSchema)) query: ListBatchesDto,
+  ) {
+    const batches = await this.listBatches.execute(query)
+    return batches.map(BatchResponseMapper.toResponse)
+  }
 
   @Post()
   @Permissions('batch:manage')

@@ -21,8 +21,17 @@ export class PrismaBatchRepository implements BatchRepositoryPort {
     return model ? BatchMapper.toDomain(model) : null
   }
 
-  async list(): Promise<Batch[]> {
+  async list(filter: {
+    status?: string
+    page: number
+    limit: number
+  }): Promise<Batch[]> {
     const models = await this.prisma.batch.findMany({
+      where: {
+        ...(filter.status ? { status: filter.status as never } : {}),
+      },
+      skip: (filter.page - 1) * filter.limit,
+      take: filter.limit,
       orderBy: { created_at: 'desc' },
     })
     return models.map(BatchMapper.toDomain)

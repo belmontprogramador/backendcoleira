@@ -21,6 +21,7 @@ import { MockNfcWriter } from './infrastructure/nfc/mock-nfc-writer'
 import { MockNfcReader } from './infrastructure/nfc/mock-nfc-reader'
 import { CreateBatchUseCase } from './application/use-cases/create-batch.use-case'
 import { GetBatchUseCase } from './application/use-cases/get-batch.use-case'
+import { ListBatchesUseCase } from './application/use-cases/list-batches.use-case'
 import { GenerateTagsUseCase } from './application/use-cases/generate-tags.use-case'
 import { CompleteBatchUseCase } from './application/use-cases/complete-batch.use-case'
 import { CancelBatchUseCase } from './application/use-cases/cancel-batch.use-case'
@@ -76,6 +77,7 @@ import { AdminTagsController } from './presentation/controllers/admin-tags.contr
     { provide: NFC_READER_PORT, useExisting: MockNfcReader },
     CreateBatchUseCase,
     GetBatchUseCase,
+    ListBatchesUseCase,
     GenerateTagsUseCase,
     CompleteBatchUseCase,
     CancelBatchUseCase,
@@ -97,6 +99,7 @@ import { AdminTagsController } from './presentation/controllers/admin-tags.contr
     ID_GENERATOR_PORT,
     CreateBatchUseCase,
     GetBatchUseCase,
+    ListBatchesUseCase,
     GenerateTagsUseCase,
     CompleteBatchUseCase,
     CancelBatchUseCase,

@@ -205,6 +205,33 @@ describe('NFC produção (e2e)', () => {
     await request(app.getHttpServer()).get('/admin/tags').expect(401)
   })
 
+  it('GET /admin/batches lista lotes (array puro)', async () => {
+    const token = await createOperator()
+    await createBatchWithTags(token, 1)
+
+    const res = await request(app.getHttpServer())
+      .get('/admin/batches')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+
+    const batches = res.body as Array<{
+      id: string
+      name: string
+      status: string
+      quantity: number
+      generatedCount: number
+    }>
+    expect(batches.length).toBeGreaterThanOrEqual(1)
+    expect(batches[0]).toHaveProperty('quantity')
+    expect(batches[0]).toHaveProperty('generatedCount')
+    // não vaza created_by (dado administrativo interno)
+    expect(batches[0]).not.toHaveProperty('created_by')
+  })
+
+  it('GET /admin/batches sem token retorna 401', async () => {
+    await request(app.getHttpServer()).get('/admin/batches').expect(401)
+  })
+
   it('fluxo celular: next-to-write → report → reset → reprint-code', async () => {
     const token = await createOperator()
     const { publicIds } = await createBatchWithTags(token, 2)

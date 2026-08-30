@@ -6,7 +6,11 @@ import type { Batch } from '../entities/batch.entity'
 export interface BatchRepositoryPort {
   findById(id: string): Promise<Batch | null>
   findByName(name: string): Promise<Batch | null>
-  list(): Promise<Batch[]>
+  list(filter: {
+    status?: string
+    page: number
+    limit: number
+  }): Promise<Batch[]>
   save(batch: Batch): Promise<void>
 }
 
