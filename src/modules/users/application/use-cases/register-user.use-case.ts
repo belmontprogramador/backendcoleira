@@ -8,10 +8,13 @@ import { EMAIL_SENDER_PORT } from '../../../../common/ports/email-sender.port'
 import type { EmailSenderPort } from '../../../../common/ports/email-sender.port'
 import { USER_REPOSITORY_PORT } from '../../domain/repositories/user.repository.port'
 import type { UserRepositoryPort } from '../../domain/repositories/user.repository.port'
+import { ROLE_REPOSITORY_PORT } from '../../domain/repositories/role.repository.port'
+import type { RoleRepositoryPort } from '../../domain/repositories/role.repository.port'
+import { Role } from '../../../../common/constants/roles'
 import { Email } from '../../domain/value-objects/email.vo'
 import { Password } from '../../domain/value-objects/password.vo'
 import { User } from '../../domain/entities/user.entity'
-import { EmailAlreadyInUseError } from '../errors'
+import { EmailAlreadyInUseError, RoleNotFoundError } from '../errors'
 
 const VERIFY_TTL_SECONDS = 86400 // 24 horas
 
@@ -28,13 +31,14 @@ export interface RegisterUserResult {
 
 /**
  * Caso de uso: registrar um novo usuário (cliente final).
- * Após criar a conta (PENDING_VERIFICATION), gera o token de verificação de
- * e-mail e dispara o envio.
+ * Cria a conta (PENDING_VERIFICATION), atribui a role `USER`, gera o token de
+ * verificação de e-mail e dispara o envio.
  */
 @Injectable()
 export class RegisterUserUseCase {
   constructor(
     @Inject(USER_REPOSITORY_PORT) private readonly users: UserRepositoryPort,
+    @Inject(ROLE_REPOSITORY_PORT) private readonly roles: RoleRepositoryPort,
     @Inject(PASSWORD_HASHER_PORT) private readonly hasher: PasswordHasherPort,
     @Inject(TEMPORARY_TOKEN_STORE_PORT)
     private readonly tokens: TemporaryTokenStorePort,
@@ -61,6 +65,12 @@ export class RegisterUserUseCase {
     })
 
     await this.users.save(user)
+
+    const userRole = await this.roles.findByName(Role.USER)
+    if (!userRole) {
+      throw new RoleNotFoundError(Role.USER)
+    }
+    await this.roles.setRole(user.id, userRole.id)
 
     const verifyToken = randomBytes(32).toString('hex')
     await this.tokens.save(`verify:${verifyToken}`, user.id, VERIFY_TTL_SECONDS)

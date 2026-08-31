@@ -44,6 +44,8 @@ describe('Users profile (e2e)', () => {
   beforeEach(async () => {
     await flushRedis(process.env.REDIS_URL ?? 'redis://localhost:6379')
     await cleanDatabase(prisma)
+    // O registro público atribui a role USER — ela precisa existir.
+    await prisma.role.create({ data: { name: 'USER' } })
   })
 
   it('register → login → me → update → change password → deactivate', async () => {
@@ -76,8 +78,8 @@ describe('Users profile (e2e)', () => {
     const me = meRes.body as MeBody
     expect(me.email).toBe('joao@email.com')
     expect(me.name).toBe('João Silva')
-    // usuário recém-registrado não tem role atribuída ainda
-    expect(me.roles).toEqual([])
+    // usuário recém-registrado nasce com a role USER (cliente final)
+    expect(me.roles).toEqual(['USER'])
     expect(me.permissions).toEqual([])
     // não vaza password_hash
     expect(meRes.body).not.toHaveProperty('password_hash')

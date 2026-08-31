@@ -28,6 +28,12 @@ export const envSchema = z.object({
     ),
   IP_HASH_SALT: z.string().min(32),
   CORS_ORIGINS: z.string().optional(),
+  FRONTEND_URL: z.string().url().optional(),
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().optional(),
   MERCADO_PAGO_WEBHOOK_SECRET: z.string().min(16).optional(),
 })
 

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import type {
   ContactMessageEmailData,
   EmailSenderPort,
@@ -7,18 +8,34 @@ import type {
 /**
  * Implementação de e-mail baseada em log (desenvolvimento).
  * Em produção, substituir por SMTP/SES — a porta `EmailSenderPort` permanece.
+ *
+ * Os e-mails transacionais de verificação e redefinição de senha logam o LINK
+ * completo (token embutido) além do token cru, para permitir testar o fluxo
+ * manualmente sem SMTP real.
  */
 @Injectable()
 export class LogEmailSender implements EmailSenderPort {
   private readonly logger = new Logger(LogEmailSender.name)
 
+  constructor(private readonly config: ConfigService) {}
+
+  private get frontendUrl(): string {
+    return this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3001'
+  }
+
   sendVerificationEmail(to: string, token: string): Promise<void> {
-    this.logger.log(`[verificação de e-mail] para=${to} token=${token}`)
+    const link = `${this.frontendUrl}/verificar-email?token=${token}`
+    this.logger.log(
+      `[verificação de e-mail] para=${to} token=${token} link=${link}`,
+    )
     return Promise.resolve()
   }
 
   sendPasswordResetEmail(to: string, token: string): Promise<void> {
-    this.logger.log(`[recuperação de senha] para=${to} token=${token}`)
+    const link = `${this.frontendUrl}/resetar-senha?token=${token}`
+    this.logger.log(
+      `[recuperação de senha] para=${to} token=${token} link=${link}`,
+    )
     return Promise.resolve()
   }
 
