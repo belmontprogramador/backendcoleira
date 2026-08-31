@@ -58,6 +58,17 @@ export class PrismaNfcTagRepository implements NfcTagRepositoryPort {
     return models.map(NfcTagMapper.toDomain)
   }
 
+  async listUnactivated(): Promise<NfcTag[]> {
+    const models = await this.prisma.nfcTag.findMany({
+      where: {
+        owner_id: null,
+        status: { in: [PrismaTagStatus.AVAILABLE, PrismaTagStatus.DELIVERED] },
+      },
+      orderBy: { created_at: 'asc' },
+    })
+    return models.map(NfcTagMapper.toDomain)
+  }
+
   async list(filter: {
     status?: string
     batchId?: string

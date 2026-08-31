@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common'
 import { ActivateTagUseCase } from '../../application/use-cases/activate-tag.use-case'
+import { ActivateTagByCodeUseCase } from '../../application/use-cases/activate-tag-by-code.use-case'
 import { AssociatePetUseCase } from '../../application/use-cases/associate-pet.use-case'
 import { DisassociatePetUseCase } from '../../application/use-cases/disassociate-pet.use-case'
 import { RequestTransferUseCase } from '../../application/use-cases/request-transfer.use-case'
@@ -10,6 +11,8 @@ import { GetTagUseCase } from '../../../nfc/application/use-cases/get-tag.use-ca
 import { OwnershipTagResponseMapper } from '../../application/mappers/ownership-tag-response.mapper'
 import { activateTagSchema } from '../../application/dtos/activate-tag.schema'
 import type { ActivateTagDto } from '../../application/dtos/activate-tag.schema'
+import { activateByCodeSchema } from '../../application/dtos/activate-by-code.schema'
+import type { ActivateByCodeDto } from '../../application/dtos/activate-by-code.schema'
 import { associatePetSchema } from '../../application/dtos/associate-pet.schema'
 import type { AssociatePetDto } from '../../application/dtos/associate-pet.schema'
 import { requestTransferSchema } from '../../application/dtos/request-transfer.schema'
@@ -31,6 +34,7 @@ import { ZodValidationPipe } from '../../../../common/pipes/zod-validation.pipe'
 export class OwnershipController {
   constructor(
     private readonly activateTag: ActivateTagUseCase,
+    private readonly activateTagByCode: ActivateTagByCodeUseCase,
     private readonly getTag: GetTagUseCase,
     private readonly associatePet: AssociatePetUseCase,
     private readonly disassociatePet: DisassociatePetUseCase,
@@ -58,6 +62,19 @@ export class OwnershipController {
       user.sub,
       publicId,
       body.activationCode,
+    )
+    return OwnershipTagResponseMapper.toResponse(tag)
+  }
+
+  @Post('activate-by-code')
+  async activateByCode(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(activateByCodeSchema)) body: ActivateByCodeDto,
+  ) {
+    const tag = await this.activateTagByCode.execute(
+      user.sub,
+      body.activationCode,
+      body.petId,
     )
     return OwnershipTagResponseMapper.toResponse(tag)
   }

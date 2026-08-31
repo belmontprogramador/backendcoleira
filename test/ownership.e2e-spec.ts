@@ -191,4 +191,58 @@ describe('Ownership — ativação (e2e)', () => {
     expect((res.body as { status: string }).status).toBe('AVAILABLE')
     expect(res.body).not.toHaveProperty('activation_code_encrypted')
   })
+
+  it('ativa por código (sem publicId) e associa ao pet existente', async () => {
+    const token = await createUser('u1', 'dono1@email.com', 'senhaForte123')
+    await createAvailableTag('7F4K9M2Q', 'X8P4-L2Q9')
+
+    // cria o pet do dono
+    const petRes = await request(app.getHttpServer())
+      .post('/pets')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Thor', species: 'Cão' })
+      .expect(201)
+    const petId = (petRes.body as { id: string }).id
+
+    // ativa + associa em uma chamada (sem escanear/publicId)
+    const res = await request(app.getHttpServer())
+      .post('/nfc/activate-by-code')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ activationCode: 'X8P4-L2Q9', petId })
+      .expect(201)
+
+    expect((res.body as { status: string }).status).toBe('ACTIVE')
+    expect((res.body as { ownerId: string }).ownerId).toBe('u1')
+    expect((res.body as { petId: string }).petId).toBe(petId)
+
+    const tag = await prisma.nfcTag.findUnique({
+      where: { public_id: '7F4K9M2Q' },
+    })
+    expect(tag?.owner_id).toBe('u1')
+    expect(tag?.pet_id).toBe(petId)
+  })
+
+  it('rejeita código errado no activate-by-code (400)', async () => {
+    const token = await createUser('u1', 'dono1@email.com', 'senhaForte123')
+    await createAvailableTag('7F4K9M2Q', 'X8P4-L2Q9')
+
+    const petRes = await request(app.getHttpServer())
+      .post('/pets')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Thor', species: 'Cão' })
+      .expect(201)
+    const petId = (petRes.body as { id: string }).id
+
+    await request(app.getHttpServer())
+      .post('/nfc/activate-by-code')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ activationCode: 'WRONG-CODE', petId })
+      .expect(400)
+
+    const tag = await prisma.nfcTag.findUnique({
+      where: { public_id: '7F4K9M2Q' },
+    })
+    expect(tag?.status).toBe('AVAILABLE')
+    expect(tag?.owner_id).toBeNull()
+  })
 })

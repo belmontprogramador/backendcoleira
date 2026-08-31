@@ -10,6 +10,8 @@ export interface NfcTagRepositoryPort {
   findNextToWrite(batchId?: string): Promise<NfcTag | null>
   listByBatch(batchId: string): Promise<NfcTag[]>
   listByPet(petId: string): Promise<NfcTag[]>
+  /** Tags não ativadas (AVAILABLE/DELIVERED, sem dono) — para ativação por código. */
+  listUnactivated(): Promise<NfcTag[]>
   list(filter: {
     status?: string
     batchId?: string

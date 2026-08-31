@@ -17,6 +17,8 @@ describe('GetNextTagToWriteUseCase', () => {
       findNextToWrite: jest.fn(),
       listByBatch: jest.fn(),
       listByPet: jest.fn(),
+
+      listUnactivated: jest.fn(),
       list: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),

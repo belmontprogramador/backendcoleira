@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { ActivateTagUseCase } from './application/use-cases/activate-tag.use-case'
+import { ActivateTagByCodeUseCase } from './application/use-cases/activate-tag-by-code.use-case'
 import { AssociatePetUseCase } from './application/use-cases/associate-pet.use-case'
 import { DisassociatePetUseCase } from './application/use-cases/disassociate-pet.use-case'
 import { RequestTransferUseCase } from './application/use-cases/request-transfer.use-case'
@@ -20,6 +21,7 @@ import { PetsModule } from '../pets/pets.module'
   controllers: [OwnershipController],
   providers: [
     ActivateTagUseCase,
+    ActivateTagByCodeUseCase,
     AssociatePetUseCase,
     DisassociatePetUseCase,
     RequestTransferUseCase,
@@ -29,6 +31,7 @@ import { PetsModule } from '../pets/pets.module'
   ],
   exports: [
     ActivateTagUseCase,
+    ActivateTagByCodeUseCase,
     AssociatePetUseCase,
     DisassociatePetUseCase,
     RequestTransferUseCase,
