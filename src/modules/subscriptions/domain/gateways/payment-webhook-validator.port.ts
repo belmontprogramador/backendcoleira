@@ -1,12 +1,14 @@
 /**
  * Porta de validação de assinatura de webhook de pagamento.
- * Implementação real: HMAC-SHA256 sobre o corpo bruto (header `X-Signature`),
- * como exige o Mercado Pago. `rawBody` é o corpo exato (bytes) enviado.
+ *
+ * Implementação real (formato atual do Mercado Pago): HMAC-SHA256 sobre o
+ * manifesto `id:<data.id>;request-id:<x-request-id>;ts:<ts>;` e comparação com
+ * a parte `v1` do header `x-signature` (formato `ts=...,v1=...`).
  */
 export interface PaymentWebhookValidatorPort {
   validate(
     headers: Record<string, string | string[] | undefined>,
-    rawBody: string,
+    dataId: string,
   ): boolean
 }
 

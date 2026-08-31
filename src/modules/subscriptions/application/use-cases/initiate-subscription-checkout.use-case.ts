@@ -4,8 +4,11 @@ import { PLAN_REPOSITORY_PORT } from '../../../plans/domain/repositories/plan.re
 import type { PlanRepositoryPort } from '../../../plans/domain/repositories/plan.repository.port'
 import { PlanNotFoundError } from '../../../plans/application/errors'
 import { FreePlanCheckoutError } from '../errors'
+import { ActiveSubscriptionExistsError } from '../errors'
 import { PAYMENT_TRANSACTION_REPOSITORY_PORT } from '../../domain/repositories/payment-transaction.repository.port'
 import type { PaymentTransactionRepositoryPort } from '../../domain/repositories/payment-transaction.repository.port'
+import { SUBSCRIPTION_REPOSITORY_PORT } from '../../domain/repositories/subscription.repository.port'
+import type { SubscriptionRepositoryPort } from '../../domain/repositories/subscription.repository.port'
 import { PAYMENT_GATEWAY_PORT } from '../../domain/gateways/payment-gateway.port'
 import type { PaymentGatewayPort } from '../../domain/gateways/payment-gateway.port'
 import type { PaymentMethod } from '../../domain/value-objects/payment-method.vo'
@@ -53,6 +56,8 @@ export class InitiateSubscriptionCheckoutUseCase {
     private readonly transactions: PaymentTransactionRepositoryPort,
     @Inject(PAYMENT_GATEWAY_PORT)
     private readonly gateway: PaymentGatewayPort,
+    @Inject(SUBSCRIPTION_REPOSITORY_PORT)
+    private readonly subscriptions: SubscriptionRepositoryPort,
   ) {}
 
   async execute(
@@ -65,6 +70,14 @@ export class InitiateSubscriptionCheckoutUseCase {
 
     if (plan.price.isZero()) {
       throw new FreePlanCheckoutError()
+    }
+
+    // Não permite pagar de novo no mesmo período: se o usuário já tem uma
+    // assinatura com benefício vigente (ACTIVE/TRIALING dentro do período),
+    // bloqueia o checkout (evita cobrança duplicada).
+    const active = await this.subscriptions.findActiveByUserId(input.userId)
+    if (active && active.isActive(new Date())) {
+      throw new ActiveSubscriptionExistsError()
     }
 
     const result = await this.gateway.createPayment({

@@ -23,6 +23,8 @@ import { nextPeriod } from '../../domain/services/subscription-billing'
 export interface ProcessPaymentWebhookInput {
   headers: Record<string, string | string[] | undefined>
   rawBody: string
+  /** Query param `data.id` da URL (usado na validação da assinatura). */
+  dataId: string
 }
 
 export interface ProcessPaymentWebhookResult {
@@ -65,7 +67,7 @@ export class ProcessPaymentWebhookUseCase {
     input: ProcessPaymentWebhookInput,
     now = new Date(),
   ): Promise<ProcessPaymentWebhookResult> {
-    if (!this.validator.validate(input.headers, input.rawBody)) {
+    if (!this.validator.validate(input.headers, input.dataId)) {
       throw new InvalidWebhookSignatureError()
     }
 

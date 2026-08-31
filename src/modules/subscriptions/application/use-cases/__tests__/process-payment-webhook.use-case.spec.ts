@@ -97,20 +97,44 @@ describe('ProcessPaymentWebhookUseCase', () => {
 
     await expect(
       makeUseCase().execute(
-        { headers: {}, rawBody: paymentNotification() },
+        { headers: {}, dataId: '', rawBody: paymentNotification() },
         now,
       ),
     ).rejects.toThrow(InvalidWebhookSignatureError)
 
+    expect(validator.validate).toHaveBeenCalledWith({}, '')
     expect(webhookEvents.save).not.toHaveBeenCalled()
     expect(gateway.getPayment).not.toHaveBeenCalled()
+  })
+
+  it('repassa data.id (query param) ao validador de assinatura', async () => {
+    validator.validate.mockReturnValue(false)
+
+    await expect(
+      makeUseCase().execute(
+        {
+          headers: { 'x-request-id': 'req-1' },
+          dataId: 'mp-123',
+          rawBody: paymentNotification(),
+        },
+        now,
+      ),
+    ).rejects.toThrow(InvalidWebhookSignatureError)
+
+    expect(validator.validate).toHaveBeenCalledWith(
+      { 'x-request-id': 'req-1' },
+      'mp-123',
+    )
   })
 
   it('lança InvalidWebhookPayloadError quando o JSON é malformado', async () => {
     validator.validate.mockReturnValue(true)
 
     await expect(
-      makeUseCase().execute({ headers: {}, rawBody: 'not-json' }, now),
+      makeUseCase().execute(
+        { headers: {}, dataId: '', rawBody: 'not-json' },
+        now,
+      ),
     ).rejects.toThrow(InvalidWebhookPayloadError)
   })
 
@@ -119,7 +143,11 @@ describe('ProcessPaymentWebhookUseCase', () => {
 
     await expect(
       makeUseCase().execute(
-        { headers: {}, rawBody: JSON.stringify({ type: 'payment' }) },
+        {
+          headers: {},
+          dataId: '',
+          rawBody: JSON.stringify({ type: 'payment' }),
+        },
         now,
       ),
     ).rejects.toThrow(InvalidWebhookPayloadError)
@@ -142,7 +170,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
     webhookEvents.findByProviderEventId.mockResolvedValue(existing)
 
     const result = await makeUseCase().execute(
-      { headers: {}, rawBody: paymentNotification() },
+      { headers: {}, dataId: '', rawBody: paymentNotification() },
       now,
     )
 
@@ -166,7 +194,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
     subscriptions.findByUserId.mockResolvedValue(null)
 
     await makeUseCase().execute(
-      { headers: {}, rawBody: paymentNotification() },
+      { headers: {}, dataId: '', rawBody: paymentNotification() },
       now,
     )
 
@@ -211,7 +239,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
     subscriptions.findByUserId.mockResolvedValue(existing)
 
     await makeUseCase().execute(
-      { headers: {}, rawBody: paymentNotification() },
+      { headers: {}, dataId: '', rawBody: paymentNotification() },
       now,
     )
 
@@ -235,7 +263,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
     transactions.findByProviderPaymentId.mockResolvedValue(transaction)
 
     await makeUseCase().execute(
-      { headers: {}, rawBody: paymentNotification() },
+      { headers: {}, dataId: '', rawBody: paymentNotification() },
       now,
     )
 
@@ -254,7 +282,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
     transactions.findByProviderPaymentId.mockResolvedValue(null)
 
     const result = await makeUseCase().execute(
-      { headers: {}, rawBody: paymentNotification() },
+      { headers: {}, dataId: '', rawBody: paymentNotification() },
       now,
     )
 

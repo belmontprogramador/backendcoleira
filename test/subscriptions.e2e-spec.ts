@@ -154,16 +154,28 @@ describe('Planos, Assinaturas e Dados Premium (e2e)', () => {
     return (res.body as { providerPaymentId: string }).providerPaymentId
   }
 
-  function signWebhook(payload: unknown): string {
-    return createHmac('sha256', WEBHOOK_SECRET)
-      .update(JSON.stringify(payload))
+  function signWebhook(dataId: string, requestId: string, ts: string): string {
+    let manifest = ''
+    if (dataId) manifest += `id:${dataId.toLowerCase()};`
+    if (requestId) manifest += `request-id:${requestId};`
+    manifest += `ts:${ts};`
+    const v1 = createHmac('sha256', WEBHOOK_SECRET)
+      .update(manifest)
       .digest('hex')
+    return `ts=${ts},v1=${v1}`
   }
 
   function postWebhook(payload: unknown) {
+    const data = (payload as { data?: { id?: string } }).data
+    const dataId = data?.id ?? ''
+    const requestId = `req-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const ts = String(Date.now())
+
     return request(app.getHttpServer())
       .post('/webhooks/payment')
-      .set('x-signature', signWebhook(payload))
+      .query({ 'data.id': dataId })
+      .set('x-signature', signWebhook(dataId, requestId, ts))
+      .set('x-request-id', requestId)
       .send(payload as object)
   }
 
@@ -290,6 +302,17 @@ describe('Planos, Assinaturas e Dados Premium (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ planId: basicPlanId, paymentMethod: 'PIX' })
       .expect(400)
+  })
+
+  it('checkout é bloqueado (409) se o usuário já tem assinatura ativa', async () => {
+    const token = await createUser('u1', 'dono1@email.com', 'senhaForte123')
+    await activatePremium(token)
+
+    await request(app.getHttpServer())
+      .post('/subscriptions/checkout')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ planId: premiumPlanId, paymentMethod: 'PIX' })
+      .expect(409)
   })
 
   it('webhook sem event_id retorna 400', async () => {

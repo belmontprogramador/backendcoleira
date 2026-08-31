@@ -15,10 +15,11 @@ describe('PaymentWebhookController', () => {
     controller = new PaymentWebhookController(process)
   })
 
-  it('extrai rawBody e headers e delega ao use case', async () => {
+  it('extrai rawBody, data.id e headers e delega ao use case', async () => {
     const req = {
       rawBody: Buffer.from('{"status":"approved"}'),
       body: { status: 'approved' },
+      query: { 'data.id': 'mp-123' },
     } as unknown as RawBodyRequest<Request>
     const headers = { 'x-signature': 'sig' }
 
@@ -28,6 +29,7 @@ describe('PaymentWebhookController', () => {
     expect(process.execute).toHaveBeenCalledWith({
       headers,
       rawBody: '{"status":"approved"}',
+      dataId: 'mp-123',
     })
   })
 
@@ -35,12 +37,30 @@ describe('PaymentWebhookController', () => {
     const req = {
       rawBody: undefined,
       body: { status: 'approved' },
+      query: {},
     } as unknown as RawBodyRequest<Request>
 
     await controller.handle(req, {})
 
     expect(process.execute).toHaveBeenCalledWith(
-      expect.objectContaining({ rawBody: '{"status":"approved"}' }),
+      expect.objectContaining({
+        rawBody: '{"status":"approved"}',
+        dataId: '',
+      }),
+    )
+  })
+
+  it('extrai data.id vazio quando o query param está ausente', async () => {
+    const req = {
+      rawBody: Buffer.from('{"status":"approved"}'),
+      body: { status: 'approved' },
+      query: {},
+    } as unknown as RawBodyRequest<Request>
+
+    await controller.handle(req, {})
+
+    expect(process.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ dataId: '' }),
     )
   })
 })
