@@ -44,4 +44,17 @@ export class PrismaPlanRepository implements PlanRepositoryPort {
     })
     return model ? PlanMapper.toDomain(model) : null
   }
+
+  async update(plan: Plan): Promise<Plan> {
+    const model = await this.prisma.plan.update({
+      where: { id: plan.id },
+      data: {
+        name: plan.name,
+        description: plan.description,
+        price_cents: plan.price.amountInCents,
+        currency: plan.price.currency,
+      },
+    })
+    return PlanMapper.toDomain(model)
+  }
 }

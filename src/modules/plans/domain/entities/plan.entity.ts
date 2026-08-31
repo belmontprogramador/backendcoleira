@@ -47,14 +47,14 @@ export class Plan {
   private constructor(
     private readonly _id: string,
     private readonly _code: string,
-    private readonly _name: string,
-    private readonly _description: string | null,
-    private readonly _price: Price,
+    private _name: string,
+    private _description: string | null,
+    private _price: Price,
     private readonly _interval: PlanInterval,
     private readonly _intervalCount: number,
     private readonly _isDefault: boolean,
     private readonly _createdAt: Date,
-    private readonly _updatedAt: Date,
+    private _updatedAt: Date,
   ) {}
 
   static create(props: CreatePlanProps): Plan {
@@ -95,6 +95,31 @@ export class Plan {
       props.createdAt,
       props.updatedAt,
     )
+  }
+
+  /**
+   * Atualiza os campos editáveis de um plano (nome, descrição e preço).
+   * `code`, `interval` e `intervalCount` são imutáveis nesta operação.
+   */
+  updateDetails(props: {
+    name?: string
+    description?: string | null
+    price?: Price
+  }): void {
+    if (props.name !== undefined) {
+      const name = props.name.trim()
+      if (name.length === 0) {
+        throw new InvalidPlanError('Nome do plano é obrigatório')
+      }
+      this._name = name
+    }
+    if (props.description !== undefined) {
+      this._description = props.description
+    }
+    if (props.price !== undefined) {
+      this._price = props.price
+    }
+    this._updatedAt = new Date()
   }
 
   get id(): string {

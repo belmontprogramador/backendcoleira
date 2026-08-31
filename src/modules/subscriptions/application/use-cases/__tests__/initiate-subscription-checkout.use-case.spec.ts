@@ -19,9 +19,10 @@ describe('InitiateSubscriptionCheckoutUseCase', () => {
       findByIds: jest.fn(),
       findByCode: jest.fn(),
       findDefault: jest.fn(),
+      update: jest.fn(),
     }
     transactions = { save: jest.fn(), findByProviderPaymentId: jest.fn() }
-    gateway = { createPayment: jest.fn() }
+    gateway = { createPayment: jest.fn(), getPayment: jest.fn() }
   })
 
   it('inicia checkout PIX e persiste transação PENDING', async () => {

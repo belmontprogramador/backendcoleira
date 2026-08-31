@@ -1,4 +1,8 @@
-import { Plan, InvalidPlanIntervalCountError } from '../plan.entity'
+import {
+  Plan,
+  InvalidPlanIntervalCountError,
+  InvalidPlanError,
+} from '../plan.entity'
 import { Price } from '../../../../../common/value-objects/price.vo'
 
 describe('Plan (entidade)', () => {
@@ -66,5 +70,70 @@ describe('Plan (entidade)', () => {
     expect(plan.price.isZero()).toBe(true)
     expect(plan.isDefault).toBe(true)
     expect(plan.createdAt).toBe(now)
+  })
+
+  it('atualiza nome, descrição e preço (updateDetails)', () => {
+    const plan = Plan.create({
+      id: 'plan-1',
+      code: 'PREMIUM',
+      name: 'Premium',
+      price: Price.create(1990),
+    })
+
+    plan.updateDetails({
+      name: 'Premium Plus',
+      description: 'Novo plano',
+      price: Price.create(2990),
+    })
+
+    expect(plan.name).toBe('Premium Plus')
+    expect(plan.description).toBe('Novo plano')
+    expect(plan.price.amountInCents).toBe(2990)
+    expect(plan.code).toBe('PREMIUM')
+    expect(plan.interval).toBe('MONTHLY')
+  })
+
+  it('updateDetails limpa a descrição quando null', () => {
+    const now = new Date()
+    const plan = Plan.reconstitute({
+      id: 'plan-1',
+      code: 'PREMIUM',
+      name: 'Premium',
+      description: 'Antiga',
+      price: Price.create(1990),
+      interval: 'MONTHLY',
+      intervalCount: 1,
+      isDefault: false,
+      createdAt: now,
+      updatedAt: now,
+    })
+
+    plan.updateDetails({ description: null })
+    expect(plan.description).toBeNull()
+  })
+
+  it('updateDetails rejeita nome vazio', () => {
+    const plan = Plan.create({
+      id: 'plan-1',
+      code: 'PREMIUM',
+      name: 'Premium',
+      price: Price.create(1990),
+    })
+
+    expect(() => plan.updateDetails({ name: '   ' })).toThrow(InvalidPlanError)
+  })
+
+  it('updateDetails mantém campos intactos quando nada é informado', () => {
+    const plan = Plan.create({
+      id: 'plan-1',
+      code: 'PREMIUM',
+      name: 'Premium',
+      price: Price.create(1990),
+    })
+
+    plan.updateDetails({})
+    expect(plan.name).toBe('Premium')
+    expect(plan.price.amountInCents).toBe(1990)
+    expect(plan.description).toBeNull()
   })
 })

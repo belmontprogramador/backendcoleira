@@ -18,6 +18,13 @@ export interface InitiateSubscriptionCheckoutInput {
   paymentMethod: PaymentMethod
   payerEmail: string
   cardToken?: string
+  cardPaymentMethodId?: string
+  cardInstallments?: number
+  cardIssuerId?: string
+  payerIdentificationType?: string
+  payerIdentificationNumber?: string
+  payerFirstName?: string
+  payerLastName?: string
 }
 
 export interface CheckoutResult {
@@ -66,6 +73,13 @@ export class InitiateSubscriptionCheckoutUseCase {
       payerEmail: input.payerEmail,
       description: `Assinatura ${plan.name} — Coleira Cachorro`,
       cardToken: input.cardToken,
+      cardPaymentMethodId: input.cardPaymentMethodId,
+      cardInstallments: input.cardInstallments,
+      cardIssuerId: input.cardIssuerId,
+      payerIdentificationType: input.payerIdentificationType,
+      payerIdentificationNumber: input.payerIdentificationNumber,
+      payerFirstName: input.payerFirstName,
+      payerLastName: input.payerLastName,
     })
 
     const transaction = PaymentTransaction.create({

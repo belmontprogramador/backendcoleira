@@ -35,6 +35,8 @@ export const envSchema = z.object({
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().optional(),
   MERCADO_PAGO_WEBHOOK_SECRET: z.string().min(16).optional(),
+  MERCADO_PAGO_ACCESS_TOKEN: z.string().optional(),
+  MERCADO_PAGO_PUBLIC_KEY: z.string().optional(),
 })
 
 export type Env = z.infer<typeof envSchema>

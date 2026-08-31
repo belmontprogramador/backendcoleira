@@ -42,6 +42,13 @@ export class SubscriptionsController {
       paymentMethod: body.paymentMethod,
       payerEmail: user.email,
       cardToken: body.cardToken,
+      cardPaymentMethodId: body.cardPaymentMethodId,
+      cardInstallments: body.cardInstallments,
+      cardIssuerId: body.cardIssuerId,
+      payerIdentificationType: body.payerIdentificationType,
+      payerIdentificationNumber: body.payerIdentificationNumber,
+      payerFirstName: body.payerFirstName,
+      payerLastName: body.payerLastName,
     })
   }
 

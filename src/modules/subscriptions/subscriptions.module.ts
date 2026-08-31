@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { PlansModule } from '../plans/plans.module'
 import { UsersModule } from '../users/users.module'
 import { SUBSCRIPTION_REPOSITORY_PORT } from './domain/repositories/subscription.repository.port'
@@ -6,6 +7,7 @@ import { SUBSCRIPTION_OWNER_INFO_PORT } from './domain/repositories/subscription
 import { PAYMENT_TRANSACTION_REPOSITORY_PORT } from './domain/repositories/payment-transaction.repository.port'
 import { WEBHOOK_EVENT_REPOSITORY_PORT } from './domain/repositories/webhook-event.repository.port'
 import { PAYMENT_GATEWAY_PORT } from './domain/gateways/payment-gateway.port'
+import type { PaymentGatewayPort } from './domain/gateways/payment-gateway.port'
 import { PAYMENT_WEBHOOK_VALIDATOR_PORT } from './domain/gateways/payment-webhook-validator.port'
 import { PrismaSubscriptionRepository } from './infrastructure/repositories/prisma-subscription.repository'
 import { PrismaSubscriptionOwnerInfo } from './infrastructure/repositories/prisma-subscription-owner-info'
@@ -13,6 +15,7 @@ import { PrismaPaymentTransactionRepository } from './infrastructure/repositorie
 import { PrismaWebhookEventRepository } from './infrastructure/repositories/prisma-webhook-event.repository'
 import { PrismaFeatureAccessService } from './infrastructure/prisma-feature-access.service'
 import { MercadoPagoGateway } from './infrastructure/gateways/mercado-pago.gateway'
+import { MercadoPagoMockGateway } from './infrastructure/gateways/mercado-pago.mock.gateway'
 import { MercadoPagoWebhookValidator } from './infrastructure/gateways/mercado-pago-webhook.validator'
 import { FEATURE_ACCESS_PORT } from '../../common/ports/feature-access.port'
 import { CheckFeatureAccessUseCase } from './application/use-cases/check-feature-access.use-case'
@@ -63,7 +66,16 @@ import { PaymentWebhookController } from './presentation/controllers/payment-web
       provide: WEBHOOK_EVENT_REPOSITORY_PORT,
       useClass: PrismaWebhookEventRepository,
     },
-    { provide: PAYMENT_GATEWAY_PORT, useClass: MercadoPagoGateway },
+    {
+      provide: PAYMENT_GATEWAY_PORT,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService): PaymentGatewayPort => {
+        const token = config.get<string>('MERCADO_PAGO_ACCESS_TOKEN')
+        return token
+          ? new MercadoPagoGateway(config)
+          : new MercadoPagoMockGateway()
+      },
+    },
     {
       provide: PAYMENT_WEBHOOK_VALIDATOR_PORT,
       useClass: MercadoPagoWebhookValidator,

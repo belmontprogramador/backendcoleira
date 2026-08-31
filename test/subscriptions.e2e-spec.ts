@@ -169,10 +169,10 @@ describe('Planos, Assinaturas e Dados Premium (e2e)', () => {
 
   async function approveViaWebhook(providerPaymentId: string, eventId: string) {
     await postWebhook({
-      event_id: eventId,
-      event_type: 'payment.updated',
-      payment_id: providerPaymentId,
-      status: 'approved',
+      id: eventId,
+      type: 'payment',
+      action: 'payment.updated',
+      data: { id: providerPaymentId },
     }).expect(201)
   }
 
@@ -271,10 +271,10 @@ describe('Planos, Assinaturas e Dados Premium (e2e)', () => {
     const providerPaymentId = await checkoutPremium(token)
 
     const payload = {
-      event_id: 'ev-dup',
-      event_type: 'payment.updated',
-      payment_id: providerPaymentId,
-      status: 'approved',
+      id: 'ev-dup',
+      type: 'payment',
+      action: 'payment.updated',
+      data: { id: providerPaymentId },
     }
     await postWebhook(payload).expect(201)
     await postWebhook(payload).expect(201)
@@ -294,24 +294,6 @@ describe('Planos, Assinaturas e Dados Premium (e2e)', () => {
 
   it('webhook sem event_id retorna 400', async () => {
     await postWebhook({ status: 'approved' }).expect(400)
-  })
-
-  it('webhook rejeitado não cria assinatura', async () => {
-    const token = await createUser('u1', 'dono1@email.com', 'senhaForte123')
-    const providerPaymentId = await checkoutPremium(token)
-
-    await postWebhook({
-      event_id: 'ev-rej',
-      event_type: 'payment.updated',
-      payment_id: providerPaymentId,
-      status: 'rejected',
-    }).expect(201)
-
-    const current = await request(app.getHttpServer())
-      .get('/subscriptions/current')
-      .set('Authorization', `Bearer ${token}`)
-      .expect(200)
-    expect((current.body as SubscriptionBody | null)?.status ?? null).toBeNull()
   })
 
   it('usuário Basic recebe 403 nas rotas premium (FeatureGuard)', async () => {

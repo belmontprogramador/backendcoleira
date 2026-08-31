@@ -4,6 +4,8 @@ import { WEBHOOK_EVENT_REPOSITORY_PORT } from '../../domain/repositories/webhook
 import type { WebhookEventRepositoryPort } from '../../domain/repositories/webhook-event.repository.port'
 import { PAYMENT_WEBHOOK_VALIDATOR_PORT } from '../../domain/gateways/payment-webhook-validator.port'
 import type { PaymentWebhookValidatorPort } from '../../domain/gateways/payment-webhook-validator.port'
+import { PAYMENT_GATEWAY_PORT } from '../../domain/gateways/payment-gateway.port'
+import type { PaymentGatewayPort } from '../../domain/gateways/payment-gateway.port'
 import { PAYMENT_TRANSACTION_REPOSITORY_PORT } from '../../domain/repositories/payment-transaction.repository.port'
 import type { PaymentTransactionRepositoryPort } from '../../domain/repositories/payment-transaction.repository.port'
 import { SUBSCRIPTION_REPOSITORY_PORT } from '../../domain/repositories/subscription.repository.port'
@@ -17,7 +19,6 @@ import { InvalidWebhookPayloadError } from '../errors'
 import { WebhookEvent } from '../../domain/entities/webhook-event.entity'
 import { Subscription } from '../../domain/entities/subscription.entity'
 import { nextPeriod } from '../../domain/services/subscription-billing'
-import type { PaymentStatus } from '../../domain/value-objects/payment-status.vo'
 
 export interface ProcessPaymentWebhookInput {
   headers: Record<string, string | string[] | undefined>
@@ -28,29 +29,16 @@ export interface ProcessPaymentWebhookResult {
   status: 'PROCESSED' | 'DUPLICATE'
 }
 
-/** Mapeia o status do Mercado Pago (lowercase) para o `PaymentStatus` do domínio. */
-function mapMercadoPagoPaymentStatus(raw: string): PaymentStatus {
-  switch (raw.toLowerCase()) {
-    case 'approved':
-      return 'APPROVED'
-    case 'rejected':
-      return 'REJECTED'
-    case 'refunded':
-      return 'REFUNDED'
-    case 'charged_back':
-      return 'CHARGED_BACK'
-    default:
-      return 'PENDING'
-  }
-}
-
 /**
  * Caso de uso: processar webhook de pagamento (RF23, RNF09).
  *
+ * Formato real do Mercado Pago (notifications):
+ * `{ id, type: "payment", action: "payment.updated", data: { id: <payment_id> } }`.
+ * O payload NÃO embute o status — ele é resolvido via `gateway.getPayment`.
+ *
  * 1. Valida assinatura (HMAC).
  * 2. Idempotência via `WebhookEvent` (`provider + event_id` único → DUPLICATE).
- * 3. Mapeia o status do gateway → `PaymentStatus`.
- * 4. `APPROVED`: aprova a `PaymentTransaction`, cria/renova a `Subscription`
+ * 3. `APPROVED`: aprova a `PaymentTransaction`, cria/renova a `Subscription`
  *    (ACTIVE, período do plano) e audita; `REJECTED`/`REFUNDED`: transiciona a
  *    transação. A `Subscription` só nasce aqui (não no checkout).
  */
@@ -61,6 +49,8 @@ export class ProcessPaymentWebhookUseCase {
     private readonly webhookEvents: WebhookEventRepositoryPort,
     @Inject(PAYMENT_WEBHOOK_VALIDATOR_PORT)
     private readonly validator: PaymentWebhookValidatorPort,
+    @Inject(PAYMENT_GATEWAY_PORT)
+    private readonly gateway: PaymentGatewayPort,
     @Inject(PAYMENT_TRANSACTION_REPOSITORY_PORT)
     private readonly transactions: PaymentTransactionRepositoryPort,
     @Inject(SUBSCRIPTION_REPOSITORY_PORT)
@@ -86,14 +76,22 @@ export class ProcessPaymentWebhookUseCase {
       throw new InvalidWebhookPayloadError()
     }
 
-    const eventId = typeof payload.event_id === 'string' ? payload.event_id : ''
-    const eventType =
-      typeof payload.event_type === 'string'
-        ? payload.event_type
-        : 'payment.updated'
-    const providerPaymentId =
-      typeof payload.payment_id === 'string' ? payload.payment_id : ''
-    const rawStatus = typeof payload.status === 'string' ? payload.status : ''
+    const type = typeof payload.type === 'string' ? payload.type : ''
+    const action =
+      typeof payload.action === 'string' ? payload.action : 'payment.updated'
+    const data = payload.data as Record<string, unknown> | undefined
+    const paymentId =
+      typeof data?.id === 'string'
+        ? data.id
+        : typeof data?.id === 'number'
+          ? String(data.id)
+          : ''
+    const eventId =
+      typeof payload.id === 'number'
+        ? String(payload.id)
+        : typeof payload.id === 'string'
+          ? payload.id
+          : ''
 
     if (eventId.length === 0) {
       throw new InvalidWebhookPayloadError()
@@ -113,22 +111,31 @@ export class ProcessPaymentWebhookUseCase {
       id: randomUUID(),
       provider: 'MERCADO_PAGO',
       eventId,
-      eventType,
+      eventType: action || type,
       payload,
     })
     await this.webhookEvents.save(event)
 
-    const paymentStatus = mapMercadoPagoPaymentStatus(rawStatus)
+    // Notificações que não são de pagamento (ex.: merchant_order) são
+    // registradas e ignoradas.
+    if (type !== 'payment' || paymentId.length === 0) {
+      event.markProcessed()
+      await this.webhookEvents.save(event)
+      return { status: 'PROCESSED' }
+    }
+
+    const payment = await this.gateway.getPayment(paymentId)
+    const paymentStatus = payment.status
 
     if (paymentStatus === 'APPROVED') {
-      const handled = await this.handleApproved(event, providerPaymentId, now)
+      const handled = await this.handleApproved(event, paymentId, now)
       if (!handled) {
         return { status: 'PROCESSED' }
       }
     } else if (paymentStatus === 'REJECTED') {
-      await this.transitionTransaction(providerPaymentId, 'markRejected')
+      await this.transitionTransaction(paymentId, 'markRejected')
     } else if (paymentStatus === 'REFUNDED') {
-      await this.transitionTransaction(providerPaymentId, 'markRefunded')
+      await this.transitionTransaction(paymentId, 'markRefunded')
     }
 
     event.markProcessed()

@@ -1,6 +1,7 @@
 import { ProcessPaymentWebhookUseCase } from '../process-payment-webhook.use-case'
 import type { WebhookEventRepositoryPort } from '../../../domain/repositories/webhook-event.repository.port'
 import type { PaymentWebhookValidatorPort } from '../../../domain/gateways/payment-webhook-validator.port'
+import type { PaymentGatewayPort } from '../../../domain/gateways/payment-gateway.port'
 import type { PaymentTransactionRepositoryPort } from '../../../domain/repositories/payment-transaction.repository.port'
 import type { SubscriptionRepositoryPort } from '../../../domain/repositories/subscription.repository.port'
 import type { PlanRepositoryPort } from '../../../../plans/domain/repositories/plan.repository.port'
@@ -16,6 +17,7 @@ import { Price } from '../../../../../common/value-objects/price.vo'
 describe('ProcessPaymentWebhookUseCase', () => {
   let webhookEvents: jest.Mocked<WebhookEventRepositoryPort>
   let validator: jest.Mocked<PaymentWebhookValidatorPort>
+  let gateway: jest.Mocked<PaymentGatewayPort>
   let transactions: jest.Mocked<PaymentTransactionRepositoryPort>
   let subscriptions: jest.Mocked<SubscriptionRepositoryPort>
   let plans: jest.Mocked<PlanRepositoryPort>
@@ -27,6 +29,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
     return new ProcessPaymentWebhookUseCase(
       webhookEvents,
       validator,
+      gateway,
       transactions,
       subscriptions,
       plans,
@@ -34,12 +37,13 @@ describe('ProcessPaymentWebhookUseCase', () => {
     )
   }
 
-  function approvedPayload(eventId = 'evt-1', paymentId = 'mp-123') {
+  // Formato real do Mercado Pago (notifications).
+  function paymentNotification(paymentId = 'mp-123', notificationId = 'evt-1') {
     return JSON.stringify({
-      event_id: eventId,
-      event_type: 'payment.updated',
-      payment_id: paymentId,
-      status: 'approved',
+      id: notificationId,
+      type: 'payment',
+      action: 'payment.updated',
+      data: { id: paymentId },
     })
   }
 
@@ -67,6 +71,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
   beforeEach(() => {
     webhookEvents = { save: jest.fn(), findByProviderEventId: jest.fn() }
     validator = { validate: jest.fn() }
+    gateway = { createPayment: jest.fn(), getPayment: jest.fn() }
     transactions = { save: jest.fn(), findByProviderPaymentId: jest.fn() }
     subscriptions = {
       save: jest.fn(),
@@ -82,6 +87,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
       findByIds: jest.fn(),
       findByCode: jest.fn(),
       findDefault: jest.fn(),
+      update: jest.fn(),
     }
     audit = { log: jest.fn() }
   })
@@ -90,11 +96,14 @@ describe('ProcessPaymentWebhookUseCase', () => {
     validator.validate.mockReturnValue(false)
 
     await expect(
-      makeUseCase().execute({ headers: {}, rawBody: approvedPayload() }, now),
+      makeUseCase().execute(
+        { headers: {}, rawBody: paymentNotification() },
+        now,
+      ),
     ).rejects.toThrow(InvalidWebhookSignatureError)
 
     expect(webhookEvents.save).not.toHaveBeenCalled()
-    expect(transactions.save).not.toHaveBeenCalled()
+    expect(gateway.getPayment).not.toHaveBeenCalled()
   })
 
   it('lança InvalidWebhookPayloadError quando o JSON é malformado', async () => {
@@ -105,6 +114,17 @@ describe('ProcessPaymentWebhookUseCase', () => {
     ).rejects.toThrow(InvalidWebhookPayloadError)
   })
 
+  it('lança InvalidWebhookPayloadError quando não há event id', async () => {
+    validator.validate.mockReturnValue(true)
+
+    await expect(
+      makeUseCase().execute(
+        { headers: {}, rawBody: JSON.stringify({ type: 'payment' }) },
+        now,
+      ),
+    ).rejects.toThrow(InvalidWebhookPayloadError)
+  })
+
   it('marca DUPLICATE e não reprocessa evento já recebido', async () => {
     validator.validate.mockReturnValue(true)
     const existing = WebhookEvent.reconstitute({
@@ -112,7 +132,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
       provider: 'MERCADO_PAGO',
       eventId: 'evt-1',
       eventType: 'payment.updated',
-      payload: { status: 'approved' },
+      payload: { type: 'payment' },
       status: 'RECEIVED',
       processedAt: null,
       error: null,
@@ -122,12 +142,12 @@ describe('ProcessPaymentWebhookUseCase', () => {
     webhookEvents.findByProviderEventId.mockResolvedValue(existing)
 
     const result = await makeUseCase().execute(
-      { headers: {}, rawBody: approvedPayload() },
+      { headers: {}, rawBody: paymentNotification() },
       now,
     )
 
     expect(result.status).toBe('DUPLICATE')
-    expect(transactions.findByProviderPaymentId).not.toHaveBeenCalled()
+    expect(gateway.getPayment).not.toHaveBeenCalled()
     const saved = webhookEvents.save.mock.calls[0][0]
     expect(saved.status).toBe('DUPLICATE')
   })
@@ -135,13 +155,18 @@ describe('ProcessPaymentWebhookUseCase', () => {
   it('approved: cria Subscription ACTIVE, aprova e linka a transaction', async () => {
     validator.validate.mockReturnValue(true)
     webhookEvents.findByProviderEventId.mockResolvedValue(null)
+    gateway.getPayment.mockResolvedValue({
+      id: 'mp-123',
+      status: 'APPROVED',
+      paymentMethod: 'PIX',
+    })
     const transaction = makeTransaction()
     transactions.findByProviderPaymentId.mockResolvedValue(transaction)
     plans.findById.mockResolvedValue(makePlan())
     subscriptions.findByUserId.mockResolvedValue(null)
 
     await makeUseCase().execute(
-      { headers: {}, rawBody: approvedPayload() },
+      { headers: {}, rawBody: paymentNotification() },
       now,
     )
 
@@ -159,6 +184,11 @@ describe('ProcessPaymentWebhookUseCase', () => {
   it('approved: renova assinatura existente estendendo o período', async () => {
     validator.validate.mockReturnValue(true)
     webhookEvents.findByProviderEventId.mockResolvedValue(null)
+    gateway.getPayment.mockResolvedValue({
+      id: 'mp-123',
+      status: 'APPROVED',
+      paymentMethod: 'PIX',
+    })
     const transaction = makeTransaction()
     transactions.findByProviderPaymentId.mockResolvedValue(transaction)
     plans.findById.mockResolvedValue(makePlan())
@@ -181,7 +211,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
     subscriptions.findByUserId.mockResolvedValue(existing)
 
     await makeUseCase().execute(
-      { headers: {}, rawBody: approvedPayload() },
+      { headers: {}, rawBody: paymentNotification() },
       now,
     )
 
@@ -196,19 +226,16 @@ describe('ProcessPaymentWebhookUseCase', () => {
   it('rejected: marca transaction REJECTED sem criar subscription', async () => {
     validator.validate.mockReturnValue(true)
     webhookEvents.findByProviderEventId.mockResolvedValue(null)
+    gateway.getPayment.mockResolvedValue({
+      id: 'mp-123',
+      status: 'REJECTED',
+      paymentMethod: 'PIX',
+    })
     const transaction = makeTransaction()
     transactions.findByProviderPaymentId.mockResolvedValue(transaction)
 
     await makeUseCase().execute(
-      {
-        headers: {},
-        rawBody: JSON.stringify({
-          event_id: 'evt-2',
-          event_type: 'payment.updated',
-          payment_id: 'mp-123',
-          status: 'rejected',
-        }),
-      },
+      { headers: {}, rawBody: paymentNotification() },
       now,
     )
 
@@ -219,15 +246,42 @@ describe('ProcessPaymentWebhookUseCase', () => {
   it('approved com transaction órfã: marca evento FAILED sem criar subscription', async () => {
     validator.validate.mockReturnValue(true)
     webhookEvents.findByProviderEventId.mockResolvedValue(null)
+    gateway.getPayment.mockResolvedValue({
+      id: 'mp-123',
+      status: 'APPROVED',
+      paymentMethod: 'PIX',
+    })
     transactions.findByProviderPaymentId.mockResolvedValue(null)
 
     const result = await makeUseCase().execute(
-      { headers: {}, rawBody: approvedPayload() },
+      { headers: {}, rawBody: paymentNotification() },
       now,
     )
 
     expect(result.status).toBe('PROCESSED')
     expect(subscriptions.save).not.toHaveBeenCalled()
     expect(transactions.save).not.toHaveBeenCalled()
+  })
+
+  it('notificação não-payment é registrada e ignorada', async () => {
+    validator.validate.mockReturnValue(true)
+    webhookEvents.findByProviderEventId.mockResolvedValue(null)
+
+    const result = await makeUseCase().execute(
+      {
+        headers: {},
+        rawBody: JSON.stringify({
+          id: 'evt-order',
+          type: 'merchant_order',
+          action: 'created',
+          data: { id: '123' },
+        }),
+      },
+      now,
+    )
+
+    expect(result.status).toBe('PROCESSED')
+    expect(gateway.getPayment).not.toHaveBeenCalled()
+    expect(subscriptions.save).not.toHaveBeenCalled()
   })
 })

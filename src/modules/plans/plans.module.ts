@@ -4,7 +4,9 @@ import { FEATURE_REPOSITORY_PORT } from './domain/repositories/feature.repositor
 import { PrismaPlanRepository } from './infrastructure/repositories/prisma-plan.repository'
 import { PrismaFeatureRepository } from './infrastructure/repositories/prisma-feature.repository'
 import { ListPlansUseCase } from './application/use-cases/list-plans.use-case'
+import { UpdatePlanUseCase } from './application/use-cases/update-plan.use-case'
 import { PlansController } from './presentation/controllers/plans.controller'
+import { AdminPlansController } from './presentation/controllers/admin-plans.controller'
 
 /**
  * Módulo de planos (catálogo Basic/Premium + Feature System).
@@ -12,13 +14,14 @@ import { PlansController } from './presentation/controllers/plans.controller'
  * portas/use cases para consumo por outros módulos.
  */
 @Module({
-  controllers: [PlansController],
+  controllers: [PlansController, AdminPlansController],
   providers: [
     PrismaPlanRepository,
     { provide: PLAN_REPOSITORY_PORT, useClass: PrismaPlanRepository },
     PrismaFeatureRepository,
     { provide: FEATURE_REPOSITORY_PORT, useClass: PrismaFeatureRepository },
     ListPlansUseCase,
+    UpdatePlanUseCase,
   ],
   exports: [PLAN_REPOSITORY_PORT, FEATURE_REPOSITORY_PORT, ListPlansUseCase],
 })

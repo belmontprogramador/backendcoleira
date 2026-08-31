@@ -11,6 +11,7 @@ export interface PlanRepositoryPort {
   findByIds(ids: string[]): Promise<Plan[]>
   findByCode(code: string): Promise<Plan | null>
   findDefault(): Promise<Plan | null>
+  update(plan: Plan): Promise<Plan>
 }
 
 export const PLAN_REPOSITORY_PORT = Symbol('PLAN_REPOSITORY_PORT')
