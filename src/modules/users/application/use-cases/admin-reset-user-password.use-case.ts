@@ -15,7 +15,11 @@ import { AUDIT_LOGGER_PORT } from '../../../../common/ports/audit-logger.port'
 import type { AuditLoggerPort } from '../../../../common/ports/audit-logger.port'
 import { canManage } from '../../../../common/constants/roles'
 import { Password } from '../../domain/value-objects/password.vo'
-import { HierarchyViolationError, UserNotFoundError } from '../errors'
+import {
+  HierarchyViolationError,
+  UserNotFoundError,
+  EmailDeliveryError,
+} from '../errors'
 
 /**
  * Caso de uso: force reset de senha por um administrador.
@@ -54,14 +58,24 @@ export class AdminResetUserPasswordUseCase {
     const password = Password.create(newPassword)
     const hash = await this.hasher.hash(password.value)
 
+    // Envia o e-mail ANTES de persistir: se o envio falhar, a senha NÃO é
+    // alterada (evita deixar o usuário sem acesso). A falha vira erro claro.
+    try {
+      await this.email.sendAdminPasswordResetEmail(
+        user.email.value,
+        newPassword,
+      )
+    } catch {
+      throw new EmailDeliveryError(
+        'Não foi possível enviar a nova senha por e-mail. A senha não foi alterada.',
+      )
+    }
+
     user.changePassword(hash)
     await this.users.save(user)
 
     // Revoga todas as sessões do alvo (força re-login com a nova senha).
     await this.refreshTokens.revokeAllForUser(targetId)
-
-    // Envia a nova senha por e-mail — nunca retorna no response do admin.
-    await this.email.sendAdminPasswordResetEmail(user.email.value, newPassword)
 
     await this.audit.log({
       action: 'password_reset_by_admin',

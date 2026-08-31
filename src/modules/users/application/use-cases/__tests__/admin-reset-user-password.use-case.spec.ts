@@ -1,5 +1,9 @@
 import { AdminResetUserPasswordUseCase } from '../admin-reset-user-password.use-case'
-import { UserNotFoundError, HierarchyViolationError } from '../../errors'
+import {
+  UserNotFoundError,
+  HierarchyViolationError,
+  EmailDeliveryError,
+} from '../../errors'
 import type { UserRepositoryPort } from '../../../domain/repositories/user.repository.port'
 import type { UserAccessPort } from '../../../../../common/ports/user-access.port'
 import type { PasswordHasherPort } from '../../../../../common/ports/password-hasher.port'
@@ -143,5 +147,31 @@ describe('AdminResetUserPasswordUseCase', () => {
     await expect(useCase.execute(['ADMIN'], 'x')).rejects.toThrow(
       UserNotFoundError,
     )
+  })
+
+  it('se o envio de e-mail falha, NÃO altera a senha e lança EmailDeliveryError', async () => {
+    const user = User.create({
+      id: 'u4',
+      name: 'Cliente',
+      email: Email.create('cliente@email.com'),
+      passwordHash: 'old-hash',
+    })
+    users.findById.mockResolvedValue(user)
+    access.resolveAccess.mockResolvedValue({
+      userId: 'u4',
+      roles: ['USER'],
+      permissions: [],
+    })
+    generator.generate.mockReturnValue('novaSenha789')
+    hasher.hash.mockResolvedValue('hash')
+    email.sendAdminPasswordResetEmail.mockRejectedValue(new Error('SMTP down'))
+
+    await expect(useCase.execute(['ADMIN'], 'u4')).rejects.toThrow(
+      EmailDeliveryError,
+    )
+
+    expect(users.save).not.toHaveBeenCalled()
+    expect(refreshTokens.revokeAllForUser).not.toHaveBeenCalled()
+    expect(audit.log).not.toHaveBeenCalled()
   })
 })

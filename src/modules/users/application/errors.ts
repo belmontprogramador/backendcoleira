@@ -38,3 +38,11 @@ export class HierarchyViolationError extends DomainError {
     super('Sem permissão hierárquica para gerenciar este usuário', 403)
   }
 }
+
+export class EmailDeliveryError extends DomainError {
+  constructor(
+    message = 'Falha ao enviar e-mail. A operação não foi concluída.',
+  ) {
+    super(message, 502)
+  }
+}
