@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post } from '@nestjs/common'
 import { GetSubscriptionUseCase } from '../../application/use-cases/get-subscription.use-case'
+import { GetUserPlanFeaturesUseCase } from '../../application/use-cases/get-user-plan-features.use-case'
 import { InitiateSubscriptionCheckoutUseCase } from '../../application/use-cases/initiate-subscription-checkout.use-case'
 import { CancelSubscriptionUseCase } from '../../application/use-cases/cancel-subscription.use-case'
 import { SubscriptionResponseMapper } from '../../application/mappers/subscription-response.mapper'
@@ -12,6 +13,7 @@ import { ZodValidationPipe } from '../../../../common/pipes/zod-validation.pipe'
 /**
  * Rotas de assinatura do usuário autenticado (`/subscriptions`).
  * - `GET /current`  → assinatura atual (expiração lazy).
+ * - `GET /features` → plano atual + features ativas (para a UI).
  * - `POST /checkout` → checkout próprio (PIX/cartão/boleto).
  * - `POST /cancel`  → cancelamento (RF21).
  */
@@ -21,6 +23,7 @@ export class SubscriptionsController {
     private readonly getSubscription: GetSubscriptionUseCase,
     private readonly checkout: InitiateSubscriptionCheckoutUseCase,
     private readonly cancel: CancelSubscriptionUseCase,
+    private readonly getUserPlanFeatures: GetUserPlanFeaturesUseCase,
   ) {}
 
   @Get('current')
@@ -29,6 +32,15 @@ export class SubscriptionsController {
     return subscription
       ? SubscriptionResponseMapper.toResponse(subscription)
       : null
+  }
+
+  @Get('features')
+  async features(@CurrentUser() user: RequestUser) {
+    const result = await this.getUserPlanFeatures.execute(user.sub)
+    return {
+      code: result.plan?.code ?? null,
+      features: result.features.map(feature => feature.code),
+    }
   }
 
   @Post('checkout')

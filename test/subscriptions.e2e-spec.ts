@@ -243,6 +243,28 @@ describe('Planos, Assinaturas e Dados Premium (e2e)', () => {
     )
   })
 
+  it('GET /subscriptions/features retorna code + features (null sem assinatura)', async () => {
+    const token = await createUser('u1', 'dono1@email.com', 'senhaForte123')
+
+    const empty = await request(app.getHttpServer())
+      .get('/subscriptions/features')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+    expect(empty.body).toEqual({ code: null, features: [] })
+
+    await activatePremium(token)
+
+    const res = await request(app.getHttpServer())
+      .get('/subscriptions/features')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+    const body = res.body as { code: string | null; features: string[] }
+    expect(body.code).toBe('PREMIUM')
+    expect(body.features.sort()).toEqual(
+      ['ACCESS_HISTORY', 'MULTIPLE_CONTACTS', 'PET_MEDICAL'].sort(),
+    )
+  })
+
   it('fluxo: checkout → webhook(approved) → ACTIVE → cancel', async () => {
     const token = await createUser('u1', 'dono1@email.com', 'senhaForte123')
 
