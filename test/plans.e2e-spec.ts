@@ -156,6 +156,11 @@ describe('Admin Plans (e2e)', () => {
       .expect(400)
   })
 
+  it('GET /plans é público (sem token)', async () => {
+    const res = await request(app.getHttpServer()).get('/plans').expect(200)
+    expect(Array.isArray(res.body)).toBe(true)
+  })
+
   it('rejeita corpo vazio (400)', async () => {
     const token = await login('super@email.com', 'superSenha123')
 
