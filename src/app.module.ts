@@ -32,6 +32,7 @@ import { PlansModule } from './modules/plans/plans.module'
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module'
 import { PetMedicalModule } from './modules/pet-medical/pet-medical.module'
 import { PetContactsModule } from './modules/pet-contacts/pet-contacts.module'
+import { DashboardModule } from './modules/dashboard/dashboard.module'
 
 @Module({
   imports: [
@@ -81,6 +82,7 @@ import { PetContactsModule } from './modules/pet-contacts/pet-contacts.module'
     SubscriptionsModule,
     PetMedicalModule,
     PetContactsModule,
+    DashboardModule,
     PublicProfileModule,
     PublicProfileInvalidationModule,
   ],

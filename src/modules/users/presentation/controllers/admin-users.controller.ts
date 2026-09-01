@@ -17,6 +17,7 @@ import { CreateAdminUserUseCase } from '../../application/use-cases/create-admin
 import { AdminGetUserUseCase } from '../../application/use-cases/admin-get-user.use-case'
 import { AdminUpdateUserUseCase } from '../../application/use-cases/admin-update-user.use-case'
 import { AdminDeleteUserUseCase } from '../../application/use-cases/admin-delete-user.use-case'
+import { RestoreUserUseCase } from '../../application/use-cases/restore-user.use-case'
 import { AdminResetUserPasswordUseCase } from '../../application/use-cases/admin-reset-user-password.use-case'
 import { UserResponseAssembler } from '../../application/assemblers/user-response.assembler'
 import { listUsersSchema } from '../../application/dtos/list-users.schema'
@@ -53,6 +54,7 @@ export class AdminUsersController {
     private readonly adminGetUserUseCase: AdminGetUserUseCase,
     private readonly adminUpdateUserUseCase: AdminUpdateUserUseCase,
     private readonly adminDeleteUserUseCase: AdminDeleteUserUseCase,
+    private readonly restoreUserUseCase: RestoreUserUseCase,
     private readonly adminResetPasswordUseCase: AdminResetUserPasswordUseCase,
     private readonly assembler: UserResponseAssembler,
   ) {}
@@ -123,6 +125,13 @@ export class AdminUsersController {
     @Param('id') id: string,
   ): Promise<void> {
     await this.adminDeleteUserUseCase.execute(user.roles ?? [], id)
+  }
+
+  @Post(':id/restore')
+  @Roles('ADMIN')
+  async restore(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    const result = await this.restoreUserUseCase.execute(user.roles ?? [], id)
+    return this.assembler.assemble(result)
   }
 
   @Patch(':id/status')

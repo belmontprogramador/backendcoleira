@@ -17,6 +17,7 @@ import { CreateAdminUserUseCase } from './application/use-cases/create-admin-use
 import { AdminGetUserUseCase } from './application/use-cases/admin-get-user.use-case'
 import { AdminUpdateUserUseCase } from './application/use-cases/admin-update-user.use-case'
 import { AdminDeleteUserUseCase } from './application/use-cases/admin-delete-user.use-case'
+import { RestoreUserUseCase } from './application/use-cases/restore-user.use-case'
 import { AdminResetUserPasswordUseCase } from './application/use-cases/admin-reset-user-password.use-case'
 import { UserResponseAssembler } from './application/assemblers/user-response.assembler'
 import { UsersController } from './presentation/controllers/users.controller'
@@ -47,6 +48,7 @@ import { AdminUsersController } from './presentation/controllers/admin-users.con
     AdminGetUserUseCase,
     AdminUpdateUserUseCase,
     AdminDeleteUserUseCase,
+    RestoreUserUseCase,
     AdminResetUserPasswordUseCase,
     UserResponseAssembler,
   ],
@@ -66,6 +68,7 @@ import { AdminUsersController } from './presentation/controllers/admin-users.con
     AdminGetUserUseCase,
     AdminUpdateUserUseCase,
     AdminDeleteUserUseCase,
+    RestoreUserUseCase,
     AdminResetUserPasswordUseCase,
   ],
 })

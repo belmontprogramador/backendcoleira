@@ -44,6 +44,7 @@ model User {
 
   @@index([status])
   @@index([deleted_at])
+  @@index([created_at])
   @@map("users")
 }
 
@@ -159,6 +160,7 @@ model Pet {
 
   @@index([owner_id])
   @@index([deleted_at])
+  @@index([created_at])
   @@map("pets")
 }
 
@@ -463,6 +465,7 @@ model PaymentTransaction {
   @@index([subscription_id])
   @@index([user_id])
   @@index([status])
+  @@index([status, created_at])
   @@map("payment_transactions")
 }
 

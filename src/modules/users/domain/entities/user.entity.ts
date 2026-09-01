@@ -120,6 +120,13 @@ export class User {
     this.touch()
   }
 
+  /** Reativa um usuário desativado (soft delete) — reverte `deactivate()`. */
+  restore(): void {
+    this._deletedAt = null
+    this._status = UserStatus.ACTIVE
+    this.touch()
+  }
+
   updateProfile(props: UpdateProfileProps): void {
     this.assertNotDeleted()
     if (props.name !== undefined) {

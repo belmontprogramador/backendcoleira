@@ -429,6 +429,29 @@ describe('Admin RBAC (e2e)', () => {
     expect(regular?.deleted_at).not.toBeNull()
   })
 
+  it('ADMIN reativa (restore) um usuário desativado', async () => {
+    const token = await login('admin@email.com', 'adminSenha123')
+
+    await request(app.getHttpServer())
+      .delete('/admin/users/regular-1')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(204)
+
+    const res = await request(app.getHttpServer())
+      .post('/admin/users/regular-1/restore')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(201)
+
+    const body = res.body as { status: string }
+    expect(body.status).toBe('ACTIVE')
+
+    const regular = await prisma.user.findUnique({
+      where: { id: 'regular-1' },
+    })
+    expect(regular?.deleted_at).toBeNull()
+    expect(regular?.status).toBe('ACTIVE')
+  })
+
   it('ADMIN NÃO pode bloquear outro ADMIN (hierarquia)', async () => {
     // cria um segundo ADMIN
     const adminRole = await prisma.role.findUniqueOrThrow({

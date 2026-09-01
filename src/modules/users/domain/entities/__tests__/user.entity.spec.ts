@@ -60,6 +60,21 @@ describe('User (entidade/agregado)', () => {
     expect(user.status).toBe(UserStatus.INACTIVE)
   })
 
+  it('reativa um usuário desativado (restore)', () => {
+    const user = User.create({
+      id: 'u1',
+      name: 'João',
+      email: email(),
+      passwordHash: 'hash',
+    })
+    user.deactivate()
+
+    user.restore()
+
+    expect(user.status).toBe(UserStatus.ACTIVE)
+    expect(user.deletedAt).toBeNull()
+  })
+
   it('atualiza nome e telefone', () => {
     const user = User.create({
       id: 'u1',
