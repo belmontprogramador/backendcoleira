@@ -33,7 +33,7 @@ export class ReportNfcWriteUseCase {
   async execute(
     operatorId: string,
     publicId: string,
-    uidValue: string,
+    uidValue: string | undefined,
     matched: boolean,
   ): Promise<NfcTag> {
     const tag = await this.tags.findByPublicId(publicId)
@@ -41,11 +41,14 @@ export class ReportNfcWriteUseCase {
       throw new TagNotFoundError(publicId)
     }
 
-    const uid = Uid.create(uidValue)
+    let uid: Uid | null = null
+    if (uidValue) {
+      uid = Uid.create(uidValue)
 
-    const existingUid = await this.tags.findByUid(uid.value)
-    if (existingUid && existingUid.id !== tag.id) {
-      throw new DuplicateUidError(uid.value)
+      const existingUid = await this.tags.findByUid(uid.value)
+      if (existingUid && existingUid.id !== tag.id) {
+        throw new DuplicateUidError(uid.value)
+      }
     }
 
     if (!matched) {
@@ -65,7 +68,11 @@ export class ReportNfcWriteUseCase {
       throw new WriteNfcFailedError(publicId, 1)
     }
 
-    tag.markWritten(uid)
+    if (uid) {
+      tag.markWritten(uid)
+    } else {
+      tag.markWrittenWithoutUid()
+    }
     await this.tags.save(tag)
 
     if (tag.batchId) {

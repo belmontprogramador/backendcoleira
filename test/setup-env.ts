@@ -7,3 +7,4 @@ process.env.MERCADO_PAGO_WEBHOOK_SECRET = 'test-webhook-secret'
 // Pago, mesmo que MERCADO_PAGO_ACCESS_TOKEN esteja definido no .env).
 process.env.MERCADO_PAGO_ACCESS_TOKEN = ''
 process.env.IP_HASH_SALT = 'test-ip-hash-salt-32-caracteres-minimo'
+process.env.PUBLIC_BASE_URL = 'https://elopet.online'

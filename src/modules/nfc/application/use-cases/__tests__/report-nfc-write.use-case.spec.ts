@@ -92,6 +92,24 @@ describe('ReportNfcWriteUseCase', () => {
     expect(savedBatch.writtenCount).toBe(1)
   })
 
+  it('marca READY sem uid quando uid ausente (Web NFC sem serialNumber)', async () => {
+    const tag = createdTag()
+    tags.findByPublicId.mockResolvedValue(tag)
+
+    const result = await useCase.execute(
+      'operator-1',
+      '7F4K9M2Q',
+      undefined,
+      true,
+    )
+
+    expect(result.status).toBe(TagStatus.READY)
+    expect(result.uid).toBeNull()
+    // sem uid, não há dedup
+    expect(tags.findByUid).not.toHaveBeenCalled()
+    expect(tags.save).toHaveBeenCalledWith(tag)
+  })
+
   it('lança DuplicateUidError se o uid já é de outra tag', async () => {
     const other = NfcTag.create({
       id: 'tag-other',

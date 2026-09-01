@@ -154,10 +154,43 @@ export class NfcTag {
     this._uid = uid
   }
 
-  /** Reset (Revisão 2): READY → CREATED, limpa o uid. Mantém publicId + código (identidade preservada). */
+  /**
+   * Reset "virgem total" (Revisão 3): leva o pingente de volta a CREATED,
+   * limpando uid + owner + pet + ativação. Preserva publicId + código
+   * (identidade) — permite regravar o mesmo card quantas vezes for preciso.
+   *
+   * É um reset administrativo do OPERATOR (`tag:record`): ignora a máquina de
+   * estados normal (não usa transitionTo) para aceitar QUALQUER estado de
+   * origem (READY, AVAILABLE, ACTIVE, ...). Idempotente: se já CREATED sem
+   * dados, não faz nada.
+   */
   reset(): void {
-    this.transitionTo(TagStatus.CREATED)
+    if (
+      this._status === TagStatus.CREATED &&
+      this._uid === null &&
+      this._ownerId === null &&
+      this._petId === null &&
+      this._activatedAt === null &&
+      this._deactivatedAt === null
+    ) {
+      return
+    }
+    this._status = TagStatus.CREATED
     this._uid = null
+    this._ownerId = null
+    this._petId = null
+    this._activatedAt = null
+    this._deactivatedAt = null
+    this.touch()
+  }
+
+  /** Marca READY sem UID (Web NFC sem serialNumber) — Revisão 3. */
+  markWrittenWithoutUid(): void {
+    if (this._status === TagStatus.READY) {
+      this.touch()
+      return
+    }
+    this.transitionTo(TagStatus.READY)
   }
 
   markInStock(): void {

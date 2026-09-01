@@ -7,6 +7,7 @@ import { ACTIVATION_CODE_GENERATOR_PORT } from './domain/services/activation-cod
 import { ACTIVATION_CODE_CIPHER_PORT } from './domain/services/activation-code-cipher.port'
 import { QR_GENERATOR_PORT } from './domain/services/qr-generator.port'
 import { PUBLIC_BASE_URL_PORT } from './domain/services/public-base-url.port'
+import { CARD_SHEET_PDF_PORT } from './domain/services/card-sheet-pdf.port'
 import { NFC_WRITER_PORT } from './domain/services/nfc-writer.port'
 import { NFC_READER_PORT } from './domain/services/nfc-reader.port'
 import { PrismaNfcTagRepository } from './infrastructure/repositories/prisma-nfc-tag.repository'
@@ -16,6 +17,7 @@ import { ActivationCodeGenerator } from './infrastructure/generators/activation-
 import { AesGcmActivationCodeCipher } from './infrastructure/generators/activation-code-cipher'
 import { QrGenerator } from './infrastructure/generators/qr-generator'
 import { EnvPublicBaseUrl } from './infrastructure/generators/env-public-base-url'
+import { PdfKitCardSheetGenerator } from './infrastructure/generators/pdf-kit-card-sheet'
 import { MockNfcChip } from './infrastructure/nfc/mock-nfc-chip'
 import { MockNfcWriter } from './infrastructure/nfc/mock-nfc-writer'
 import { MockNfcReader } from './infrastructure/nfc/mock-nfc-reader'
@@ -34,6 +36,7 @@ import { ResetTagUseCase } from './application/use-cases/reset-tag.use-case'
 import { ReprintCodeUseCase } from './application/use-cases/reprint-code.use-case'
 import { VerifyNfcUseCase } from './application/use-cases/verify-nfc.use-case'
 import { GenerateQrUseCase } from './application/use-cases/generate-qr.use-case'
+import { GenerateBatchSheetUseCase } from './application/use-cases/generate-batch-sheet.use-case'
 import { AdminBatchesController } from './presentation/controllers/admin-batches.controller'
 import { AdminTagsController } from './presentation/controllers/admin-tags.controller'
 
@@ -70,6 +73,8 @@ import { AdminTagsController } from './presentation/controllers/admin-tags.contr
     { provide: QR_GENERATOR_PORT, useClass: QrGenerator },
     EnvPublicBaseUrl,
     { provide: PUBLIC_BASE_URL_PORT, useClass: EnvPublicBaseUrl },
+    PdfKitCardSheetGenerator,
+    { provide: CARD_SHEET_PDF_PORT, useClass: PdfKitCardSheetGenerator },
     MockNfcChip,
     MockNfcWriter,
     { provide: NFC_WRITER_PORT, useExisting: MockNfcWriter },
@@ -90,6 +95,7 @@ import { AdminTagsController } from './presentation/controllers/admin-tags.contr
     ReprintCodeUseCase,
     VerifyNfcUseCase,
     GenerateQrUseCase,
+    GenerateBatchSheetUseCase,
   ],
   exports: [
     NFC_TAG_REPOSITORY_PORT,
@@ -97,6 +103,7 @@ import { AdminTagsController } from './presentation/controllers/admin-tags.contr
     ACTIVATION_CODE_GENERATOR_PORT,
     ACTIVATION_CODE_CIPHER_PORT,
     ID_GENERATOR_PORT,
+    CARD_SHEET_PDF_PORT,
     CreateBatchUseCase,
     GetBatchUseCase,
     ListBatchesUseCase,
@@ -112,6 +119,7 @@ import { AdminTagsController } from './presentation/controllers/admin-tags.contr
     ReprintCodeUseCase,
     VerifyNfcUseCase,
     GenerateQrUseCase,
+    GenerateBatchSheetUseCase,
   ],
 })
 export class NfcModule {}

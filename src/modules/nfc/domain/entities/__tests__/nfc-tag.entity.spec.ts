@@ -102,16 +102,59 @@ describe('NfcTag (agregado)', () => {
       expect(tag.activationCodeEncrypted).toBe('encrypted-code')
     })
 
-    it('rejeita reset de tag não-READY (CREATED)', () => {
+    it('reset é idempotente (CREATED sem dados → no-op)', () => {
       const tag = makeTag()
-      expect(() => tag.reset()).toThrow(InvalidTagStatusTransitionError)
+      expect(() => tag.reset()).not.toThrow()
+      expect(tag.status).toBe(TagStatus.CREATED)
     })
 
-    it('rejeita reset após estoque (IN_STOCK)', () => {
+    it('reset aceita QUALQUER estado (IN_STOCK → CREATED)', () => {
       const tag = makeTag()
       tag.markWritten(Uid.create('04:A7:32:91:8B:1F'))
       tag.markInStock()
-      expect(() => tag.reset()).toThrow(InvalidTagStatusTransitionError)
+      tag.reset()
+
+      expect(tag.status).toBe(TagStatus.CREATED)
+    })
+
+    it('reset virgem total limpa uid/owner/pet/ativação (ACTIVE → CREATED)', () => {
+      const tag = makeTag()
+      tag.markWritten(Uid.create('04:A7:32:91:8B:1F'))
+      tag.markInStock()
+      tag.markSold()
+      tag.markDelivered()
+      tag.markAvailable()
+      tag.activate('user-1')
+      tag.associatePet('pet-1')
+
+      tag.reset()
+
+      expect(tag.status).toBe(TagStatus.CREATED)
+      expect(tag.uid).toBeNull()
+      expect(tag.ownerId).toBeNull()
+      expect(tag.petId).toBeNull()
+      expect(tag.activatedAt).toBeNull()
+      expect(tag.publicId.value).toBe('7F4K9M2Q')
+      expect(tag.activationCodeEncrypted).toBe('encrypted-code')
+    })
+  })
+
+  describe('markWrittenWithoutUid()', () => {
+    it('CREATED → READY sem uid', () => {
+      const tag = makeTag()
+      tag.markWrittenWithoutUid()
+
+      expect(tag.status).toBe(TagStatus.READY)
+      expect(tag.uid).toBeNull()
+    })
+
+    it('READY → READY idempotente (sem uid)', () => {
+      const tag = makeTag()
+      tag.markWrittenWithoutUid()
+      tag.markWrittenWithoutUid()
+
+      expect(tag.status).toBe(TagStatus.READY)
+      expect(tag.uid).toBeNull()
     })
   })
 })

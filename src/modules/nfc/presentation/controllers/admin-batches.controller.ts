@@ -6,13 +6,16 @@ import {
   Param,
   Post,
   Query,
+  Res,
 } from '@nestjs/common'
+import type { Response } from 'express'
 import { CreateBatchUseCase } from '../../application/use-cases/create-batch.use-case'
 import { GenerateTagsUseCase } from '../../application/use-cases/generate-tags.use-case'
 import { CompleteBatchUseCase } from '../../application/use-cases/complete-batch.use-case'
 import { CancelBatchUseCase } from '../../application/use-cases/cancel-batch.use-case'
 import { GetBatchUseCase } from '../../application/use-cases/get-batch.use-case'
 import { ListBatchesUseCase } from '../../application/use-cases/list-batches.use-case'
+import { GenerateBatchSheetUseCase } from '../../application/use-cases/generate-batch-sheet.use-case'
 import { BatchResponseMapper } from '../../application/mappers/batch-response.mapper'
 import { createBatchSchema } from '../../application/dtos/create-batch.schema'
 import type { CreateBatchDto } from '../../application/dtos/create-batch.schema'
@@ -37,6 +40,7 @@ export class AdminBatchesController {
     private readonly generateTags: GenerateTagsUseCase,
     private readonly completeBatch: CompleteBatchUseCase,
     private readonly cancelBatch: CancelBatchUseCase,
+    private readonly generateBatchSheet: GenerateBatchSheetUseCase,
   ) {}
 
   @Get()
@@ -63,6 +67,22 @@ export class AdminBatchesController {
   async detail(@Param('id') id: string) {
     const batch = await this.getBatch.execute(id)
     return BatchResponseMapper.toResponse(batch)
+  }
+
+  @Get(':id/sheet')
+  @Permissions('tag:write')
+  async sheet(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const result = await this.generateBatchSheet.execute(user.sub, id)
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${result.filename}"`,
+    )
+    res.send(result.pdf)
   }
 
   @Post(':id/generate')

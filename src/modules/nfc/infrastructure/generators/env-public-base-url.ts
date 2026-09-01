@@ -12,7 +12,7 @@ export class EnvPublicBaseUrl implements PublicBaseUrlPort {
 
   buildProfileUrl(publicId: string): string {
     const base =
-      this.config.get<string>('PUBLIC_BASE_URL') ?? 'https://dominio.com'
+      this.config.get<string>('PUBLIC_BASE_URL') ?? 'https://elopet.online'
     return `${base}/p/${publicId}`
   }
 }

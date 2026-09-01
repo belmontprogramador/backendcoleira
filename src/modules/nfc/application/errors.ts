@@ -15,6 +15,12 @@ export class TagNotFoundError extends DomainError {
   }
 }
 
+export class BatchEmptyError extends DomainError {
+  constructor(id: string) {
+    super(`Lote sem tags geradas: ${id}`, 400)
+  }
+}
+
 export class DuplicateUidError extends DomainError {
   constructor(uid: string) {
     super(`UID já associado a outra tag: ${uid}`, 409)

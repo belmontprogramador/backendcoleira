@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import * as QRCode from 'qrcode'
-import type { QrGeneratorPort } from '../../domain/services/qr-generator.port'
+import type {
+  QrGeneratorOptions,
+  QrGeneratorPort,
+} from '../../domain/services/qr-generator.port'
 
 /**
  * Implementação do gerador de QR Code usando a lib `qrcode`.
@@ -8,10 +11,13 @@ import type { QrGeneratorPort } from '../../domain/services/qr-generator.port'
  */
 @Injectable()
 export class QrGenerator implements QrGeneratorPort {
-  async generatePng(url: string): Promise<Buffer> {
+  async generatePng(
+    url: string,
+    options?: QrGeneratorOptions,
+  ): Promise<Buffer> {
     return QRCode.toBuffer(url, {
       type: 'png',
-      width: 300,
+      width: options?.size ?? 300,
       margin: 2,
       errorCorrectionLevel: 'M',
     })

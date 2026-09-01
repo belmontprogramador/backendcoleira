@@ -160,6 +160,12 @@ export class Batch {
     this.touch()
   }
 
+  /** Decrementa o contador de gravados (piso 0) — reset de card (Revisão 3). */
+  decrementWritten(): void {
+    this._writtenCount = Math.max(0, this._writtenCount - 1)
+    this.touch()
+  }
+
   incrementVerified(): void {
     this._verifiedCount += 1
     this.touch()

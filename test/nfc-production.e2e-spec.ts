@@ -243,7 +243,7 @@ describe('NFC produção (e2e)', () => {
       .expect(200)
     const first = nextRes.body as { publicId: string; url: string }
     expect(publicIds).toContain(first.publicId)
-    expect(first.url).toBe(`https://dominio.com/p/${first.publicId}`)
+    expect(first.url).toBe(`https://elopet.online/p/${first.publicId}`)
 
     // 2) report matched=true → READY
     const reportRes = await request(app.getHttpServer())
@@ -285,6 +285,20 @@ describe('NFC produção (e2e)', () => {
     expect((reprintRes.body as { code: string }).code).toMatch(
       /^[A-Z0-9]{4}-[A-Z0-9]{4}$/,
     )
+  })
+
+  it('report aceita uid ausente (Web NFC sem serialNumber)', async () => {
+    const token = await createOperator()
+    const { publicIds } = await createBatchWithTags(token, 1)
+
+    const res = await request(app.getHttpServer())
+      .post('/admin/tags/report')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ publicId: publicIds[0], matched: true })
+      .expect(201)
+
+    expect((res.body as { status: string }).status).toBe('READY')
+    expect((res.body as { uid: string | null }).uid).toBeNull()
   })
 
   it('next-to-write retorna corpo vazio quando não há tag CREATED', async () => {
@@ -353,6 +367,51 @@ describe('NFC produção (e2e)', () => {
 
     await request(app.getHttpServer())
       .post(`/admin/tags/${publicIds[0]}/reprint-code`)
+      .set('Authorization', `Bearer ${userToken}`)
+      .expect(403)
+  })
+
+  it('GET /admin/batches/:id/sheet baixa o PDF (application/pdf)', async () => {
+    const token = await createOperator()
+    const { batchId } = await createBatchWithTags(token, 2)
+
+    const res = await request(app.getHttpServer())
+      .get(`/admin/batches/${batchId}/sheet`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+
+    expect(res.headers['content-type']).toContain('application/pdf')
+    expect(res.headers['content-disposition']).toContain('attachment')
+
+    const body = res.body as Buffer
+    expect(body.subarray(0, 4).toString('ascii')).toBe('%PDF')
+  })
+
+  it('GET /admin/batches/:id/sheet exige tag:write (usuário comum → 403)', async () => {
+    const token = await createOperator()
+    const { batchId } = await createBatchWithTags(token, 1)
+
+    const user = await prisma.user.create({
+      data: {
+        id: 'regular-sheet',
+        name: 'RegularSheet',
+        email: 'regular-sheet@email.com',
+        password_hash: await bcrypt.hash('regularSenha123', 12),
+        status: 'ACTIVE',
+      },
+    })
+    const role = await prisma.role.create({ data: { name: 'USER' } })
+    await prisma.userRole.create({
+      data: { user_id: user.id, role_id: role.id },
+    })
+    const login = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: 'regular-sheet@email.com', password: 'regularSenha123' })
+      .expect(200)
+    const userToken = (login.body as AuthBody).accessToken
+
+    await request(app.getHttpServer())
+      .get(`/admin/batches/${batchId}/sheet`)
       .set('Authorization', `Bearer ${userToken}`)
       .expect(403)
   })

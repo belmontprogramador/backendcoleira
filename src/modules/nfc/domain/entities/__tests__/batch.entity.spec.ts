@@ -58,6 +58,23 @@ describe('Batch (agregado)', () => {
     expect(batch.failedCount).toBe(1)
   })
 
+  it('decrementa o contador de gravados com piso zero', () => {
+    const batch = makeBatch()
+    batch.startGenerating()
+    batch.finishGeneration(1000)
+    batch.startWriting()
+
+    batch.incrementWritten()
+    batch.incrementWritten()
+    batch.decrementWritten()
+    expect(batch.writtenCount).toBe(1)
+
+    // piso: nunca fica negativo
+    batch.decrementWritten()
+    batch.decrementWritten()
+    expect(batch.writtenCount).toBe(0)
+  })
+
   it('rejeita finalizar geração sem ter iniciado', () => {
     const batch = makeBatch()
     expect(() => batch.finishGeneration(10)).toThrow(

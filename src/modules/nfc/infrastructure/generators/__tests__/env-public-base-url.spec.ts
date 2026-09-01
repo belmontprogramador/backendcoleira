@@ -20,7 +20,7 @@ describe('EnvPublicBaseUrl', () => {
     const service = new EnvPublicBaseUrl(makeConfig(undefined))
 
     expect(service.buildProfileUrl('7F4K9M2Q')).toBe(
-      'https://dominio.com/p/7F4K9M2Q',
+      'https://elopet.online/p/7F4K9M2Q',
     )
   })
 })
