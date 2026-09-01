@@ -33,6 +33,7 @@ import { WriteNfcUseCase } from './application/use-cases/write-nfc.use-case'
 import { ReportNfcWriteUseCase } from './application/use-cases/report-nfc-write.use-case'
 import { GetNextTagToWriteUseCase } from './application/use-cases/get-next-tag-to-write.use-case'
 import { ResetTagUseCase } from './application/use-cases/reset-tag.use-case'
+import { MarkTagAvailableUseCase } from './application/use-cases/mark-tag-available.use-case'
 import { ReprintCodeUseCase } from './application/use-cases/reprint-code.use-case'
 import { VerifyNfcUseCase } from './application/use-cases/verify-nfc.use-case'
 import { GenerateQrUseCase } from './application/use-cases/generate-qr.use-case'
@@ -92,6 +93,7 @@ import { AdminTagsController } from './presentation/controllers/admin-tags.contr
     ReportNfcWriteUseCase,
     GetNextTagToWriteUseCase,
     ResetTagUseCase,
+    MarkTagAvailableUseCase,
     ReprintCodeUseCase,
     VerifyNfcUseCase,
     GenerateQrUseCase,
@@ -116,6 +118,7 @@ import { AdminTagsController } from './presentation/controllers/admin-tags.contr
     ReportNfcWriteUseCase,
     GetNextTagToWriteUseCase,
     ResetTagUseCase,
+    MarkTagAvailableUseCase,
     ReprintCodeUseCase,
     VerifyNfcUseCase,
     GenerateQrUseCase,

@@ -69,6 +69,23 @@ describe('NfcTag (agregado)', () => {
     expect(tag.status).toBe(TagStatus.AVAILABLE)
   })
 
+  it('markAvailable: READY → AVAILABLE direto (atalho Opção A)', () => {
+    const tag = makeTag()
+    tag.markWritten(Uid.create('04:A7:32:91:8B:1F'))
+    tag.markAvailable()
+
+    expect(tag.status).toBe(TagStatus.AVAILABLE)
+  })
+
+  it('markAvailable é idempotente (AVAILABLE → AVAILABLE, sem erro)', () => {
+    const tag = makeTag()
+    tag.markWritten(Uid.create('04:A7:32:91:8B:1F'))
+    tag.markAvailable()
+
+    expect(() => tag.markAvailable()).not.toThrow()
+    expect(tag.status).toBe(TagStatus.AVAILABLE)
+  })
+
   it('reconstitui a partir de dados persistidos', () => {
     const tag = NfcTag.reconstitute({
       id: 'tag-1',

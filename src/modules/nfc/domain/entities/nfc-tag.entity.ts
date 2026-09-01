@@ -41,7 +41,13 @@ export class TagNotActiveError extends DomainError {
  */
 const VALID_TRANSITIONS: Record<TagStatus, TagStatus[]> = {
   [TagStatus.CREATED]: [TagStatus.READY],
-  [TagStatus.READY]: [TagStatus.IN_STOCK, TagStatus.CREATED],
+  // AVAILABLE é atalho (Opção A): chip gravado vai direto ao cliente, pulando
+  // o rastreio físico IN_STOCK → SOLD → DELIVERED.
+  [TagStatus.READY]: [
+    TagStatus.IN_STOCK,
+    TagStatus.AVAILABLE,
+    TagStatus.CREATED,
+  ],
   [TagStatus.IN_STOCK]: [TagStatus.SOLD],
   [TagStatus.SOLD]: [TagStatus.DELIVERED],
   [TagStatus.DELIVERED]: [
@@ -206,6 +212,9 @@ export class NfcTag {
   }
 
   markAvailable(): void {
+    if (this._status === TagStatus.AVAILABLE) {
+      return
+    }
     this.transitionTo(TagStatus.AVAILABLE)
   }
 

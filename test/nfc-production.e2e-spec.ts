@@ -301,6 +301,41 @@ describe('NFC produção (e2e)', () => {
     expect((res.body as { uid: string | null }).uid).toBeNull()
   })
 
+  it('mark-available: READY → AVAILABLE (atalho Opção A) + idempotente', async () => {
+    const token = await createOperator()
+    const { publicIds } = await createBatchWithTags(token, 1)
+
+    // grava → READY
+    await request(app.getHttpServer())
+      .post('/admin/tags/report')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ publicId: publicIds[0], uid: '04:A7:32:91:8B:1F', matched: true })
+      .expect(201)
+
+    // mark-available → AVAILABLE
+    const res = await request(app.getHttpServer())
+      .post(`/admin/tags/${publicIds[0]}/mark-available`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(201)
+    expect((res.body as { status: string }).status).toBe('AVAILABLE')
+
+    // idempotente: segunda chamada não quebra
+    const res2 = await request(app.getHttpServer())
+      .post(`/admin/tags/${publicIds[0]}/mark-available`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(201)
+    expect((res2.body as { status: string }).status).toBe('AVAILABLE')
+  })
+
+  it('mark-available retorna 404 para tag inexistente', async () => {
+    const token = await createOperator()
+
+    await request(app.getHttpServer())
+      .post('/admin/tags/NAOEXISTE/mark-available')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404)
+  })
+
   it('next-to-write retorna corpo vazio quando não há tag CREATED', async () => {
     const token = await createOperator()
     const { publicIds } = await createBatchWithTags(token, 1)

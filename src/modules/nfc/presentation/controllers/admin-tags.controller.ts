@@ -18,6 +18,7 @@ import { GenerateQrUseCase } from '../../application/use-cases/generate-qr.use-c
 import { ReportNfcWriteUseCase } from '../../application/use-cases/report-nfc-write.use-case'
 import { GetNextTagToWriteUseCase } from '../../application/use-cases/get-next-tag-to-write.use-case'
 import { ResetTagUseCase } from '../../application/use-cases/reset-tag.use-case'
+import { MarkTagAvailableUseCase } from '../../application/use-cases/mark-tag-available.use-case'
 import { ReprintCodeUseCase } from '../../application/use-cases/reprint-code.use-case'
 import { NfcTagResponseMapper } from '../../application/mappers/nfc-tag-response.mapper'
 import { writeNfcSchema } from '../../application/dtos/write-nfc.schema'
@@ -52,6 +53,7 @@ export class AdminTagsController {
     private readonly reportNfcWrite: ReportNfcWriteUseCase,
     private readonly getNextTagToWrite: GetNextTagToWriteUseCase,
     private readonly resetTag: ResetTagUseCase,
+    private readonly markTagAvailable: MarkTagAvailableUseCase,
     private readonly reprintCodeUseCase: ReprintCodeUseCase,
   ) {}
 
@@ -117,6 +119,16 @@ export class AdminTagsController {
     @Param('publicId') publicId: string,
   ) {
     const tag = await this.resetTag.execute(user.sub, publicId)
+    return NfcTagResponseMapper.toResponse(tag)
+  }
+
+  @Post(':publicId/mark-available')
+  @Permissions('tag:write')
+  async markAvailable(
+    @CurrentUser() user: RequestUser,
+    @Param('publicId') publicId: string,
+  ) {
+    const tag = await this.markTagAvailable.execute(user.sub, publicId)
     return NfcTagResponseMapper.toResponse(tag)
   }
 
