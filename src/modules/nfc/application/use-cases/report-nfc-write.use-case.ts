@@ -73,6 +73,7 @@ export class ReportNfcWriteUseCase {
     } else {
       tag.markWrittenWithoutUid()
     }
+    tag.markAvailable()
     await this.tags.save(tag)
 
     if (tag.batchId) {

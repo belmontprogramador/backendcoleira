@@ -8,6 +8,7 @@ import {
   Query,
   Res,
 } from '@nestjs/common'
+import { SkipThrottle } from '@nestjs/throttler'
 import type { Response } from 'express'
 import { CreateBatchUseCase } from '../../application/use-cases/create-batch.use-case'
 import { GenerateTagsUseCase } from '../../application/use-cases/generate-tags.use-case'
@@ -32,6 +33,7 @@ import { ZodValidationPipe } from '../../../../common/pipes/zod-validation.pipe'
  * Rotas administrativas de lotes (`/admin/batches`).
  */
 @Controller('admin/batches')
+@SkipThrottle()
 export class AdminBatchesController {
   constructor(
     private readonly createBatch: CreateBatchUseCase,

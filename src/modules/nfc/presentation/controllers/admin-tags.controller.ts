@@ -9,6 +9,7 @@ import {
   Query,
   Res,
 } from '@nestjs/common'
+import { SkipThrottle } from '@nestjs/throttler'
 import type { Response } from 'express'
 import { GetTagUseCase } from '../../application/use-cases/get-tag.use-case'
 import { ListTagsUseCase } from '../../application/use-cases/list-tags.use-case'
@@ -43,6 +44,7 @@ import { ZodValidationPipe } from '../../../../common/pipes/zod-validation.pipe'
  * EXCLUSIVO de OPERATOR (separação de funções — doc-sistema §producao-fabricacao).
  */
 @Controller('admin/tags')
+@SkipThrottle()
 export class AdminTagsController {
   constructor(
     private readonly getTag: GetTagUseCase,

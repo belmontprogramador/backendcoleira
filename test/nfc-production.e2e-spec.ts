@@ -165,7 +165,7 @@ describe('NFC produção (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ publicId, uid: '04:A7:32:91:8B:1F' })
       .expect(201)
-    expect((writeRes.body as { status: string }).status).toBe('READY')
+    expect((writeRes.body as { status: string }).status).toBe('AVAILABLE')
     expect((writeRes.body as { uid: string }).uid).toBe('04:A7:32:91:8B:1F')
 
     // QR
@@ -260,7 +260,7 @@ describe('NFC produção (e2e)', () => {
         matched: true,
       })
       .expect(201)
-    expect((reportRes.body as { status: string }).status).toBe('READY')
+    expect((reportRes.body as { status: string }).status).toBe('AVAILABLE')
 
     // 3) next-to-write agora retorna a OUTRA tag (FIFO)
     const secondRes = await request(app.getHttpServer())
@@ -303,7 +303,7 @@ describe('NFC produção (e2e)', () => {
       .send({ publicId: publicIds[0], matched: true })
       .expect(201)
 
-    expect((res.body as { status: string }).status).toBe('READY')
+    expect((res.body as { status: string }).status).toBe('AVAILABLE')
     expect((res.body as { uid: string | null }).uid).toBeNull()
   })
 

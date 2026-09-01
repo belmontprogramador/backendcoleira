@@ -153,7 +153,10 @@ export class NfcTag {
   }
 
   markWritten(uid: Uid): void {
-    if (this._status === TagStatus.READY) {
+    if (
+      this._status === TagStatus.READY ||
+      this._status === TagStatus.AVAILABLE
+    ) {
       // Regravação idempotente (Revisão 2): READY → READY não quebra,
       // apenas atualiza o uid e mantém o estado.
       this._uid = uid
@@ -199,7 +202,10 @@ export class NfcTag {
 
   /** Marca READY sem UID (Web NFC sem serialNumber) — Revisão 3. */
   markWrittenWithoutUid(): void {
-    if (this._status === TagStatus.READY) {
+    if (
+      this._status === TagStatus.READY ||
+      this._status === TagStatus.AVAILABLE
+    ) {
       this._resetAt = null
       this.touch()
       return

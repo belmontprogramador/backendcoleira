@@ -79,7 +79,7 @@ describe('ReportNfcWriteUseCase', () => {
       true,
     )
 
-    expect(result.status).toBe(TagStatus.READY)
+    expect(result.status).toBe(TagStatus.AVAILABLE)
     expect(result.uid?.value).toBe('04:A7:32:91:8B:1F')
     expect(tags.save).toHaveBeenCalledWith(tag)
     expect(audit.log).toHaveBeenCalledWith(
@@ -125,7 +125,7 @@ describe('ReportNfcWriteUseCase', () => {
       true,
     )
 
-    expect(result.status).toBe(TagStatus.READY)
+    expect(result.status).toBe(TagStatus.AVAILABLE)
     expect(result.uid).toBeNull()
     // sem uid, não há dedup
     expect(tags.findByUid).not.toHaveBeenCalled()

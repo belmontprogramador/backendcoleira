@@ -87,7 +87,7 @@ describe('WriteNfcUseCase', () => {
       '04:A7:32:91:8B:1F',
     )
 
-    expect(result.status).toBe('READY')
+    expect(result.status).toBe('AVAILABLE')
     expect(result.uid?.value).toBe('04:A7:32:91:8B:1F')
     expect(writer.write).toHaveBeenCalledWith('04:A7:32:91:8B:1F', URL)
     expect(reader.read).toHaveBeenCalledWith('04:A7:32:91:8B:1F')
@@ -141,7 +141,7 @@ describe('WriteNfcUseCase', () => {
       '04:A7:32:91:8B:1F',
     )
 
-    expect(result.status).toBe('READY')
+    expect(result.status).toBe('AVAILABLE')
     expect(writer.write).toHaveBeenCalledTimes(2)
   })
 

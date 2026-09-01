@@ -90,6 +90,7 @@ export class WriteNfcUseCase {
     }
 
     tag.markWritten(uid)
+    tag.markAvailable()
     await this.tags.save(tag)
 
     if (tag.batchId) {

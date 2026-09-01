@@ -58,6 +58,16 @@ describe('NfcTag (agregado)', () => {
     expect(tag.uid?.value).toBe('04:A7:32:91:8B:2E')
   })
 
+  it('regrava tag AVAILABLE de forma idempotente (AVAILABLE → AVAILABLE, atualiza uid)', () => {
+    const tag = makeTag()
+    tag.markWritten(Uid.create('04:A7:32:91:8B:1F'))
+    tag.markAvailable()
+    tag.markWritten(Uid.create('04:A7:32:91:8B:2E'))
+
+    expect(tag.status).toBe(TagStatus.AVAILABLE)
+    expect(tag.uid?.value).toBe('04:A7:32:91:8B:2E')
+  })
+
   it('transições da Fase 4/5 (AVAILABLE/ACTIVE/SUSPENDED/LOST/DEACTIVATED/RETIRED) são permitidas após DELIVERED', () => {
     const tag = makeTag()
     tag.markWritten(Uid.create('04:A7:32:91:8B:1F'))
@@ -216,6 +226,15 @@ describe('NfcTag (agregado)', () => {
 
       expect(tag.status).toBe(TagStatus.READY)
       expect(tag.uid).toBeNull()
+    })
+
+    it('AVAILABLE → AVAILABLE idempotente (sem uid)', () => {
+      const tag = makeTag()
+      tag.markWritten(Uid.create('04:A7:32:91:8B:1F'))
+      tag.markAvailable()
+      tag.markWrittenWithoutUid()
+
+      expect(tag.status).toBe(TagStatus.AVAILABLE)
     })
   })
 })
