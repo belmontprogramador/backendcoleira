@@ -18,6 +18,7 @@ describe('CreateBatchUseCase', () => {
       findByName: jest.fn(),
       list: jest.fn(),
       save: jest.fn(),
+      delete: jest.fn(),
     }
     audit = { log: jest.fn() }
     useCase = new CreateBatchUseCase(batches, audit)

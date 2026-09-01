@@ -23,6 +23,7 @@ describe('GetNextTagToWriteUseCase', () => {
       count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
+      deleteByBatch: jest.fn(),
     }
     baseUrl = {
       buildProfileUrl: jest.fn(publicId => `https://dominio.com/p/${publicId}`),

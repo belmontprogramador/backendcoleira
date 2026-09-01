@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto'
 import { DomainError } from '../../../../common/errors/domain-error'
 
 /**
@@ -15,8 +16,10 @@ export class InvalidUidError extends DomainError {
 }
 
 /**
- * Value object do UID — identificação física do chip NFC.
- * Lido do hardware (leitor USB ou Web NFC), nunca gerado pelo sistema.
+ * Value object do UID — identificação do chip NFC.
+ * Preferencialmente lido do hardware (leitor USB ou Web NFC); quando o
+ * celular não expõe o `serialNumber`, o sistema gera um UID sintético
+ * (`Uid.generate()`) para manter a coluna preenchida.
  */
 export class Uid {
   private constructor(private readonly _value: string) {}
@@ -28,6 +31,11 @@ export class Uid {
     }
     const formatted = (raw.match(/.{1,2}/g) ?? []).join(':')
     return new Uid(formatted)
+  }
+
+  /** Gera um UID sintético de 7 bytes (NTAG215) quando o hardware não expõe o serial. */
+  static generate(): Uid {
+    return Uid.create(randomBytes(7).toString('hex'))
   }
 
   get value(): string {

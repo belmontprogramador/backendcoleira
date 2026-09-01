@@ -24,6 +24,7 @@ describe('MarkTagAvailableUseCase', () => {
       count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
+      deleteByBatch: jest.fn(),
     }
     audit = { log: jest.fn() }
     useCase = new MarkTagAvailableUseCase(tags, audit)

@@ -43,6 +43,7 @@ describe('Ownership — associação/desassociação de pet', () => {
       count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
+      deleteByBatch: jest.fn(),
     }
     pets = {
       findById: jest.fn(),

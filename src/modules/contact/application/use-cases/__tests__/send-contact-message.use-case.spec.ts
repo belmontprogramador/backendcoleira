@@ -48,6 +48,7 @@ describe('SendContactMessageUseCase', () => {
       list: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
+      deleteByBatch: jest.fn(),
     }
     pets = {
       findById: jest.fn(),

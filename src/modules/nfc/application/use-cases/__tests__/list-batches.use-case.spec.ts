@@ -11,6 +11,7 @@ describe('ListBatchesUseCase', () => {
       findByName: jest.fn(),
       list: jest.fn(),
       save: jest.fn(),
+      delete: jest.fn(),
     }
   })
 

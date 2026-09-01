@@ -45,4 +45,8 @@ export class PrismaBatchRepository implements BatchRepositoryPort {
       update: data,
     })
   }
+
+  async delete(id: string): Promise<void> {
+    await this.prisma.batch.delete({ where: { id } })
+  }
 }

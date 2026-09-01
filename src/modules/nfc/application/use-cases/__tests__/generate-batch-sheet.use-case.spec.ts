@@ -28,6 +28,7 @@ describe('GenerateBatchSheetUseCase', () => {
       list: jest.fn(),
       count: jest.fn(),
       save: jest.fn(),
+      delete: jest.fn(),
     }
     tags = {
       findById: jest.fn(),
@@ -40,6 +41,7 @@ describe('GenerateBatchSheetUseCase', () => {
       list: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
+      deleteByBatch: jest.fn(),
     }
     cipher = { encrypt: jest.fn(), decrypt: jest.fn() }
     qrGen = { generatePng: jest.fn() }

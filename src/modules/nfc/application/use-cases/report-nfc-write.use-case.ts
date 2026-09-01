@@ -41,7 +41,7 @@ export class ReportNfcWriteUseCase {
       throw new TagNotFoundError(publicId)
     }
 
-    let uid: Uid | null = null
+    let uid: Uid
     if (uidValue) {
       uid = Uid.create(uidValue)
 
@@ -49,6 +49,11 @@ export class ReportNfcWriteUseCase {
       if (existingUid && existingUid.id !== tag.id) {
         throw new DuplicateUidError(uid.value)
       }
+    } else {
+      // Web NFC sem serialNumber: gera um UID sintético. O identificador real
+      // do chip é o publicId (gravado na URL); o serial físico serve só para
+      // dedup quando o hardware o expõe.
+      uid = Uid.generate()
     }
 
     if (!matched) {
@@ -68,11 +73,7 @@ export class ReportNfcWriteUseCase {
       throw new WriteNfcFailedError(publicId, 1)
     }
 
-    if (uid) {
-      tag.markWritten(uid)
-    } else {
-      tag.markWrittenWithoutUid()
-    }
+    tag.markWritten(uid)
     tag.markAvailable()
     await this.tags.save(tag)
 

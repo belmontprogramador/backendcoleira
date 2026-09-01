@@ -36,6 +36,7 @@ describe('ActivateTagUseCase', () => {
       count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
+      deleteByBatch: jest.fn(),
     }
     cipher = { encrypt: jest.fn(), decrypt: jest.fn() }
     audit = { log: jest.fn() }

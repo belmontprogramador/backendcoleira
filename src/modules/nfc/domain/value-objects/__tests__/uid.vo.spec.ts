@@ -35,4 +35,9 @@ describe('Uid', () => {
     expect(() => Uid.create('04:A7:32:91:8B:GG')).toThrow(InvalidUidError)
     expect(() => Uid.create('04A732918B1G')).toThrow(InvalidUidError)
   })
+
+  it('gera UID sintético de 7 bytes (14 hex, com separador)', () => {
+    const uid = Uid.generate()
+    expect(uid.value).toMatch(/^([0-9A-F]{2}:){6}[0-9A-F]{2}$/)
+  })
 })

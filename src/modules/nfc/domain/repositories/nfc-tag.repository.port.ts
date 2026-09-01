@@ -21,6 +21,8 @@ export interface NfcTagRepositoryPort {
   count(filter: { status?: string; batchId?: string }): Promise<number>
   save(tag: NfcTag): Promise<void>
   saveMany(tags: NfcTag[]): Promise<void>
+  /** Exclui definitivamente todas as tags de um lote (hard delete). Retorna o total. */
+  deleteByBatch(batchId: string): Promise<number>
 }
 
 export const NFC_TAG_REPOSITORY_PORT = Symbol('NFC_TAG_REPOSITORY_PORT')

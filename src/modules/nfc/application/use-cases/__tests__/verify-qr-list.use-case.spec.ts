@@ -32,6 +32,7 @@ describe('NFC — verify/qr/list', () => {
       count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
+      deleteByBatch: jest.fn(),
     }
     reader = { read: jest.fn() }
     qrGen = { generatePng: jest.fn() }

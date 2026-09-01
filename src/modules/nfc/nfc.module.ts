@@ -27,6 +27,7 @@ import { ListBatchesUseCase } from './application/use-cases/list-batches.use-cas
 import { GenerateTagsUseCase } from './application/use-cases/generate-tags.use-case'
 import { CompleteBatchUseCase } from './application/use-cases/complete-batch.use-case'
 import { CancelBatchUseCase } from './application/use-cases/cancel-batch.use-case'
+import { DeleteBatchUseCase } from './application/use-cases/delete-batch.use-case'
 import { GetTagUseCase } from './application/use-cases/get-tag.use-case'
 import { ListTagsUseCase } from './application/use-cases/list-tags.use-case'
 import { WriteNfcUseCase } from './application/use-cases/write-nfc.use-case'
@@ -87,6 +88,7 @@ import { AdminTagsController } from './presentation/controllers/admin-tags.contr
     GenerateTagsUseCase,
     CompleteBatchUseCase,
     CancelBatchUseCase,
+    DeleteBatchUseCase,
     GetTagUseCase,
     ListTagsUseCase,
     WriteNfcUseCase,
@@ -112,6 +114,7 @@ import { AdminTagsController } from './presentation/controllers/admin-tags.contr
     GenerateTagsUseCase,
     CompleteBatchUseCase,
     CancelBatchUseCase,
+    DeleteBatchUseCase,
     GetTagUseCase,
     ListTagsUseCase,
     WriteNfcUseCase,

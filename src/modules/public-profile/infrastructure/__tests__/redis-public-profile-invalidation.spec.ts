@@ -31,6 +31,7 @@ describe('RedisPublicProfileInvalidation', () => {
       count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
+      deleteByBatch: jest.fn(),
     }
     invalidation = new RedisPublicProfileInvalidation(cache, tags)
   })

@@ -293,7 +293,7 @@ describe('NFC produção (e2e)', () => {
     )
   })
 
-  it('report aceita uid ausente (Web NFC sem serialNumber)', async () => {
+  it('report sem uid gera UID sintético (Web NFC sem serialNumber)', async () => {
     const token = await createOperator()
     const { publicIds } = await createBatchWithTags(token, 1)
 
@@ -304,7 +304,9 @@ describe('NFC produção (e2e)', () => {
       .expect(201)
 
     expect((res.body as { status: string }).status).toBe('AVAILABLE')
-    expect((res.body as { uid: string | null }).uid).toBeNull()
+    expect((res.body as { uid: string }).uid).toMatch(
+      /^([0-9A-F]{2}:){6}[0-9A-F]{2}$/,
+    )
   })
 
   it('lote avança GENERATED → WRITING na 1ª gravação e pode ser completado', async () => {
@@ -512,5 +514,42 @@ describe('NFC produção (e2e)', () => {
       .get(`/admin/batches/${batchId}/sheet`)
       .set('Authorization', `Bearer ${userToken}`)
       .expect(403)
+  })
+
+  it('purge: DELETE /admin/batches/:id/purge apaga lote + tags (hard delete)', async () => {
+    const token = await createOperator()
+    const { batchId } = await createBatchWithTags(token, 2)
+
+    const before = await request(app.getHttpServer())
+      .get(`/admin/tags?batchId=${batchId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+    expect((before.body as { meta: { total: number } }).meta.total).toBe(2)
+
+    const purgeRes = await request(app.getHttpServer())
+      .delete(`/admin/batches/${batchId}/purge`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+    expect(purgeRes.body).toEqual({ batchId, deletedTags: 2 })
+
+    // lote sumiu
+    await request(app.getHttpServer())
+      .get(`/admin/batches/${batchId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404)
+
+    // tags não ficam órfãs
+    const orphanTags = await prisma.nfcTag.findMany({
+      where: { batch_id: batchId },
+    })
+    expect(orphanTags).toHaveLength(0)
+  })
+
+  it('purge retorna 404 para lote inexistente', async () => {
+    const token = await createOperator()
+    await request(app.getHttpServer())
+      .delete('/admin/batches/NAOEXISTE/purge')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404)
   })
 })

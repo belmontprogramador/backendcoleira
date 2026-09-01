@@ -15,6 +15,7 @@ describe('NFC — complete/cancel batch', () => {
       findByName: jest.fn(),
       list: jest.fn(),
       save: jest.fn(),
+      delete: jest.fn(),
     }
     audit = { log: jest.fn() }
   })

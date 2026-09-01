@@ -12,6 +12,8 @@ export interface BatchRepositoryPort {
     limit: number
   }): Promise<Batch[]>
   save(batch: Batch): Promise<void>
+  /** Exclui definitivamente o lote (hard delete). */
+  delete(id: string): Promise<void>
 }
 
 export const BATCH_REPOSITORY_PORT = Symbol('BATCH_REPOSITORY_PORT')

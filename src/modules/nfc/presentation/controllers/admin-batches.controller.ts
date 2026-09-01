@@ -14,6 +14,7 @@ import { CreateBatchUseCase } from '../../application/use-cases/create-batch.use
 import { GenerateTagsUseCase } from '../../application/use-cases/generate-tags.use-case'
 import { CompleteBatchUseCase } from '../../application/use-cases/complete-batch.use-case'
 import { CancelBatchUseCase } from '../../application/use-cases/cancel-batch.use-case'
+import { DeleteBatchUseCase } from '../../application/use-cases/delete-batch.use-case'
 import { GetBatchUseCase } from '../../application/use-cases/get-batch.use-case'
 import { ListBatchesUseCase } from '../../application/use-cases/list-batches.use-case'
 import { GenerateBatchSheetUseCase } from '../../application/use-cases/generate-batch-sheet.use-case'
@@ -42,6 +43,7 @@ export class AdminBatchesController {
     private readonly generateTags: GenerateTagsUseCase,
     private readonly completeBatch: CompleteBatchUseCase,
     private readonly cancelBatch: CancelBatchUseCase,
+    private readonly deleteBatch: DeleteBatchUseCase,
     private readonly generateBatchSheet: GenerateBatchSheetUseCase,
   ) {}
 
@@ -114,5 +116,11 @@ export class AdminBatchesController {
   ) {
     const batch = await this.cancelBatch.execute(id, body.reason)
     return BatchResponseMapper.toResponse(batch)
+  }
+
+  @Delete(':id/purge')
+  @Permissions('batch:manage')
+  async purge(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.deleteBatch.execute(user.sub, id)
   }
 }

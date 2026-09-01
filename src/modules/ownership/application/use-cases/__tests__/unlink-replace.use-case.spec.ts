@@ -34,6 +34,7 @@ describe('Ownership — desvinculação e substituição', () => {
       count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
+      deleteByBatch: jest.fn(),
     }
     audit = { log: jest.fn() }
     invalidation = {

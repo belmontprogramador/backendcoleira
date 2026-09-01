@@ -31,12 +31,14 @@ describe('ReportNfcWriteUseCase', () => {
       count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
+      deleteByBatch: jest.fn(),
     }
     batches = {
       findById: jest.fn(),
       findByName: jest.fn(),
       list: jest.fn(),
       save: jest.fn(),
+      delete: jest.fn(),
     }
     audit = { log: jest.fn() }
     useCase = new ReportNfcWriteUseCase(tags, batches, audit)
@@ -114,7 +116,7 @@ describe('ReportNfcWriteUseCase', () => {
     expect(savedBatch.writtenCount).toBe(1)
   })
 
-  it('marca READY sem uid quando uid ausente (Web NFC sem serialNumber)', async () => {
+  it('gera UID sintético quando uid ausente (Web NFC sem serialNumber)', async () => {
     const tag = createdTag()
     tags.findByPublicId.mockResolvedValue(tag)
 
@@ -126,8 +128,8 @@ describe('ReportNfcWriteUseCase', () => {
     )
 
     expect(result.status).toBe(TagStatus.AVAILABLE)
-    expect(result.uid).toBeNull()
-    // sem uid, não há dedup
+    expect(result.uid).not.toBeNull()
+    // UID sintético → sem dedup por serial físico
     expect(tags.findByUid).not.toHaveBeenCalled()
     expect(tags.save).toHaveBeenCalledWith(tag)
   })

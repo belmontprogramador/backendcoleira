@@ -92,10 +92,7 @@ export class PrismaNfcTagRepository implements NfcTagRepositoryPort {
     return models.map(NfcTagMapper.toDomain)
   }
 
-  async count(filter: {
-    status?: string
-    batchId?: string
-  }): Promise<number> {
+  async count(filter: { status?: string; batchId?: string }): Promise<number> {
     return this.prisma.nfcTag.count({
       where: {
         ...(filter.status ? { status: filter.status as never } : {}),
@@ -119,5 +116,12 @@ export class PrismaNfcTagRepository implements NfcTagRepositoryPort {
     }
     const data = tags.map(NfcTagMapper.toPersistence)
     await this.prisma.nfcTag.createMany({ data, skipDuplicates: true })
+  }
+
+  async deleteByBatch(batchId: string): Promise<number> {
+    const result = await this.prisma.nfcTag.deleteMany({
+      where: { batch_id: batchId },
+    })
+    return result.count
   }
 }

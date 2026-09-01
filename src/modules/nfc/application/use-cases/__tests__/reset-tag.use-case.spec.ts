@@ -27,12 +27,14 @@ describe('ResetTagUseCase', () => {
       count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
+      deleteByBatch: jest.fn(),
     }
     batches = {
       findById: jest.fn(),
       findByName: jest.fn(),
       list: jest.fn(),
       save: jest.fn(),
+      delete: jest.fn(),
     }
     audit = { log: jest.fn() }
     useCase = new ResetTagUseCase(tags, batches, audit)

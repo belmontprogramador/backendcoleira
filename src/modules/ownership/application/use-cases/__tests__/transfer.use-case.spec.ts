@@ -43,6 +43,7 @@ describe('Ownership — transferência', () => {
       list: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
+      deleteByBatch: jest.fn(),
     }
     users = {
       findById: jest.fn(),

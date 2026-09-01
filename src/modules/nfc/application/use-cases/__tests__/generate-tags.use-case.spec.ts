@@ -30,6 +30,7 @@ describe('GenerateTagsUseCase', () => {
       list: jest.fn(),
       count: jest.fn(),
       save: jest.fn(),
+      delete: jest.fn(),
     }
     tags = {
       findById: jest.fn(),
@@ -43,6 +44,7 @@ describe('GenerateTagsUseCase', () => {
       list: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
+      deleteByBatch: jest.fn(),
     }
     idGen = { generatePublicId: jest.fn() }
     codeGen = { generate: jest.fn() }
