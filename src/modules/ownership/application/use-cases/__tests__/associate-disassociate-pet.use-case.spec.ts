@@ -40,6 +40,7 @@ describe('Ownership — associação/desassociação de pet', () => {
 
       listUnactivated: jest.fn(),
       list: jest.fn(),
+      count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
     }
@@ -132,6 +133,7 @@ describe('Ownership — associação/desassociação de pet', () => {
         petId: null,
         activatedAt: tag.activatedAt,
         deactivatedAt: null,
+        resetAt: null,
         createdAt: tag.createdAt,
         updatedAt: tag.updatedAt,
       })

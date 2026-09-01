@@ -8,6 +8,7 @@ export interface NfcTagResponse {
   batchId: string | null
   ownerId: string | null
   petId: string | null
+  resetAt: Date | null
   createdAt: Date
   updatedAt: Date
 }
@@ -26,6 +27,7 @@ export class NfcTagResponseMapper {
       batchId: tag.batchId,
       ownerId: tag.ownerId,
       petId: tag.petId,
+      resetAt: tag.resetAt,
       createdAt: tag.createdAt,
       updatedAt: tag.updatedAt,
     }

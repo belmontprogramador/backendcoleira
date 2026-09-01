@@ -33,6 +33,7 @@ describe('ActivateTagUseCase', () => {
 
       listUnactivated: jest.fn(),
       list: jest.fn(),
+      count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
     }
@@ -101,6 +102,7 @@ describe('ActivateTagUseCase', () => {
       petId: null,
       activatedAt: null,
       deactivatedAt: null,
+      resetAt: null,
       createdAt: tag.createdAt,
       updatedAt: tag.updatedAt,
     })

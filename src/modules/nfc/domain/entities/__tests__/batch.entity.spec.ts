@@ -75,6 +75,40 @@ describe('Batch (agregado)', () => {
     expect(batch.writtenCount).toBe(0)
   })
 
+  it('ensureWriting: GENERATED → WRITING (primeira gravação)', () => {
+    const batch = makeBatch()
+    batch.startGenerating()
+    batch.finishGeneration(1000)
+
+    batch.ensureWriting()
+
+    expect(batch.status).toBe(BatchStatus.WRITING)
+  })
+
+  it('ensureWriting: idempotente (WRITING → WRITING)', () => {
+    const batch = makeBatch()
+    batch.startGenerating()
+    batch.finishGeneration(1000)
+    batch.startWriting()
+
+    expect(() => batch.ensureWriting()).not.toThrow()
+    expect(batch.status).toBe(BatchStatus.WRITING)
+  })
+
+  it('ensureWriting: no-op para PENDING/COMPLETED (não lança)', () => {
+    const pending = makeBatch()
+    expect(() => pending.ensureWriting()).not.toThrow()
+    expect(pending.status).toBe(BatchStatus.PENDING)
+
+    const completed = makeBatch()
+    completed.startGenerating()
+    completed.finishGeneration(10)
+    completed.startWriting()
+    completed.complete()
+    expect(() => completed.ensureWriting()).not.toThrow()
+    expect(completed.status).toBe(BatchStatus.COMPLETED)
+  })
+
   it('rejeita finalizar geração sem ter iniciado', () => {
     const batch = makeBatch()
     expect(() => batch.finishGeneration(10)).toThrow(

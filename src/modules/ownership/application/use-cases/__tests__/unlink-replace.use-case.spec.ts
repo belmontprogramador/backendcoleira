@@ -31,6 +31,7 @@ describe('Ownership — desvinculação e substituição', () => {
 
       listUnactivated: jest.fn(),
       list: jest.fn(),
+      count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
     }
@@ -103,6 +104,7 @@ describe('Ownership — desvinculação e substituição', () => {
         petId: 'pet-1',
         activatedAt: tag.activatedAt,
         deactivatedAt: null,
+        resetAt: null,
         createdAt: tag.createdAt,
         updatedAt: tag.updatedAt,
       })

@@ -23,6 +23,7 @@ describe('ReprintCodeUseCase', () => {
 
       listUnactivated: jest.fn(),
       list: jest.fn(),
+      count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
     }

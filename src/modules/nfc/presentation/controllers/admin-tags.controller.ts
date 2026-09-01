@@ -60,8 +60,16 @@ export class AdminTagsController {
   @Get()
   @Permissions('tag:read')
   async list(@Query(new ZodValidationPipe(listTagsSchema)) query: ListTagsDto) {
-    const tags = await this.listTags.execute(query)
-    return tags.map(NfcTagResponseMapper.toResponse)
+    const result = await this.listTags.execute(query)
+    return {
+      data: result.data.map(NfcTagResponseMapper.toResponse),
+      meta: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: Math.ceil(result.total / result.limit),
+      },
+    }
   }
 
   @Get('next-to-write')

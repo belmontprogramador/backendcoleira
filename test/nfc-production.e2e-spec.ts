@@ -109,7 +109,7 @@ describe('NFC produção (e2e)', () => {
       .get(`/admin/tags?batchId=${batchId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200)
-    const tags = listRes.body as Array<{ publicId: string }>
+    const tags = (listRes.body as { data: Array<{ publicId: string }> }).data
     return { batchId, publicIds: tags.map(t => t.publicId) }
   }
 
@@ -134,13 +134,18 @@ describe('NFC produção (e2e)', () => {
     expect(gen.codes).toHaveLength(2)
     expect(gen.codes[0]).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}$/)
 
-    // listar tags
+    // listar tags (envelope { data, meta })
     const listRes = await request(app.getHttpServer())
       .get(`/admin/tags?batchId=${batchId}`)
       .set('Authorization', `Bearer ${token}`)
       .expect(200)
-    const tags = listRes.body as Array<{ publicId: string; status: string }>
+    const tags = (
+      listRes.body as {
+        data: Array<{ publicId: string; status: string }>
+      }
+    ).data
     expect(tags).toHaveLength(2)
+    expect((listRes.body as { meta: { total: number } }).meta.total).toBe(2)
     expect(tags[0].status).toBe('CREATED')
     // não vaza activation_code_encrypted
     const firstTag = tags[0]
@@ -266,13 +271,14 @@ describe('NFC produção (e2e)', () => {
     expect(second.publicId).not.toBe(first.publicId)
     expect(publicIds).toContain(second.publicId)
 
-    // 4) reset → CREATED + uid null
+    // 4) reset → CREATED + uid null + resetAt marcado
     const resetRes = await request(app.getHttpServer())
       .post(`/admin/tags/${first.publicId}/reset`)
       .set('Authorization', `Bearer ${token}`)
       .expect(201)
     expect((resetRes.body as { status: string }).status).toBe('CREATED')
     expect((resetRes.body as { uid: string | null }).uid).toBeNull()
+    expect((resetRes.body as { resetAt: string | null }).resetAt).not.toBeNull()
 
     // 5) reprint-code → código descriptografado
     const reprintRes = await request(app.getHttpServer())
@@ -299,6 +305,32 @@ describe('NFC produção (e2e)', () => {
 
     expect((res.body as { status: string }).status).toBe('READY')
     expect((res.body as { uid: string | null }).uid).toBeNull()
+  })
+
+  it('lote avança GENERATED → WRITING na 1ª gravação e pode ser completado', async () => {
+    const token = await createOperator()
+    const { batchId, publicIds } = await createBatchWithTags(token, 1)
+
+    // lote recém-gerado ainda está GENERATED
+    const before = await prisma.batch.findUnique({ where: { id: batchId } })
+    expect(before?.status).toBe('GENERATED')
+
+    // primeira gravação → lote vira WRITING
+    await request(app.getHttpServer())
+      .post('/admin/tags/report')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ publicId: publicIds[0], matched: true })
+      .expect(201)
+
+    const after = await prisma.batch.findUnique({ where: { id: batchId } })
+    expect(after?.status).toBe('WRITING')
+
+    // completar agora funciona (WRITING → COMPLETED)
+    const completeRes = await request(app.getHttpServer())
+      .post(`/admin/batches/${batchId}/complete`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(201)
+    expect((completeRes.body as { status: string }).status).toBe('COMPLETED')
   })
 
   it('mark-available: READY → AVAILABLE (atalho Opção A) + idempotente', async () => {
@@ -334,6 +366,37 @@ describe('NFC produção (e2e)', () => {
       .post('/admin/tags/NAOEXISTE/mark-available')
       .set('Authorization', `Bearer ${token}`)
       .expect(404)
+  })
+
+  it('next-to-write prioriza tag resetada e expõe resetAt', async () => {
+    const token = await createOperator()
+    const { publicIds } = await createBatchWithTags(token, 3)
+
+    // grava as 3 tags → todas READY (sem uid, evita duplicidade)
+    for (const pid of publicIds) {
+      await request(app.getHttpServer())
+        .post('/admin/tags/report')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ publicId: pid, matched: true })
+        .expect(201)
+    }
+
+    // reseta a terceira → CREATED + resetAt marcado
+    const target = publicIds[2]
+    const resetRes = await request(app.getHttpServer())
+      .post(`/admin/tags/${target}/reset`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(201)
+    expect((resetRes.body as { resetAt: string | null }).resetAt).not.toBeNull()
+
+    // next-to-write devolve EXATAMENTE a tag resetada (reset-first)
+    const nextRes = await request(app.getHttpServer())
+      .get('/admin/tags/next-to-write')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+    const next = nextRes.body as { publicId: string; resetAt: string | null }
+    expect(next.publicId).toBe(target)
+    expect(next.resetAt).not.toBeNull()
   })
 
   it('next-to-write retorna corpo vazio quando não há tag CREATED', async () => {

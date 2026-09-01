@@ -20,6 +20,7 @@ export class NfcTagMapper {
     pet_id: string | null
     activated_at: Date | null
     deactivated_at: Date | null
+    reset_at: Date | null
     created_at: Date
     updated_at: Date
   } {
@@ -34,6 +35,7 @@ export class NfcTagMapper {
       pet_id: tag.petId,
       activated_at: tag.activatedAt,
       deactivated_at: tag.deactivatedAt,
+      reset_at: tag.resetAt,
       created_at: tag.createdAt,
       updated_at: tag.updatedAt,
     }
@@ -51,6 +53,7 @@ export class NfcTagMapper {
       petId: model.pet_id,
       activatedAt: model.activated_at,
       deactivatedAt: model.deactivated_at,
+      resetAt: model.reset_at,
       createdAt: model.created_at,
       updatedAt: model.updated_at,
     })

@@ -10,8 +10,16 @@ export interface ListTagsFilter {
   limit?: number
 }
 
+export interface PaginatedTagsResult {
+  data: NfcTag[]
+  total: number
+  page: number
+  limit: number
+}
+
 /**
- * Caso de uso: listar tags (por batch/status).
+ * Caso de uso: listar tags (por batch/status) com paginação real
+ * (`data` + `total`). O controller monta o envelope `{ data, meta }`.
  */
 @Injectable()
 export class ListTagsUseCase {
@@ -20,15 +28,21 @@ export class ListTagsUseCase {
     private readonly tags: NfcTagRepositoryPort,
   ) {}
 
-  async execute(filter: ListTagsFilter): Promise<NfcTag[]> {
-    if (filter.batchId && !filter.status) {
-      return this.tags.listByBatch(filter.batchId)
-    }
-    return this.tags.list({
-      status: filter.status,
-      batchId: filter.batchId,
-      page: filter.page ?? 1,
-      limit: filter.limit ?? 20,
-    })
+  async execute(filter: ListTagsFilter): Promise<PaginatedTagsResult> {
+    const page = filter.page ?? 1
+    const limit = filter.limit ?? 20
+    const [data, total] = await Promise.all([
+      this.tags.list({
+        status: filter.status,
+        batchId: filter.batchId,
+        page,
+        limit,
+      }),
+      this.tags.count({
+        status: filter.status,
+        batchId: filter.batchId,
+      }),
+    ])
+    return { data, total, page, limit }
   }
 }

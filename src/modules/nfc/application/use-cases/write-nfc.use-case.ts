@@ -95,6 +95,7 @@ export class WriteNfcUseCase {
     if (tag.batchId) {
       const batch = await this.batches.findById(tag.batchId)
       if (batch) {
+        batch.ensureWriting()
         batch.incrementWritten()
         await this.batches.save(batch)
       }

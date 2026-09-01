@@ -20,6 +20,7 @@ describe('GetNextTagToWriteUseCase', () => {
 
       listUnactivated: jest.fn(),
       list: jest.fn(),
+      count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
     }
@@ -47,6 +48,7 @@ describe('GetNextTagToWriteUseCase', () => {
     expect(result).toEqual({
       publicId: '7F4K9M2Q',
       url: 'https://dominio.com/p/7F4K9M2Q',
+      resetAt: null,
     })
   })
 

@@ -28,6 +28,7 @@ describe('GenerateTagsUseCase', () => {
       findById: jest.fn(),
       findByName: jest.fn(),
       list: jest.fn(),
+      count: jest.fn(),
       save: jest.fn(),
     }
     tags = {

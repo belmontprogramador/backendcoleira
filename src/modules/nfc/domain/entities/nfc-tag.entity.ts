@@ -88,6 +88,7 @@ export interface ReconstructNfcTagProps {
   petId: string | null
   activatedAt: Date | null
   deactivatedAt: Date | null
+  resetAt: Date | null
   createdAt: Date
   updatedAt: Date
 }
@@ -109,6 +110,7 @@ export class NfcTag {
     private _petId: string | null,
     private _activatedAt: Date | null,
     private _deactivatedAt: Date | null,
+    private _resetAt: Date | null,
     private readonly _createdAt: Date,
     private _updatedAt: Date,
   ) {}
@@ -122,6 +124,7 @@ export class NfcTag {
       props.activationCodeEncrypted,
       TagStatus.CREATED,
       props.batchId ?? null,
+      null,
       null,
       null,
       null,
@@ -143,6 +146,7 @@ export class NfcTag {
       props.petId,
       props.activatedAt,
       props.deactivatedAt,
+      props.resetAt,
       props.createdAt,
       props.updatedAt,
     )
@@ -153,11 +157,13 @@ export class NfcTag {
       // Regravação idempotente (Revisão 2): READY → READY não quebra,
       // apenas atualiza o uid e mantém o estado.
       this._uid = uid
+      this._resetAt = null
       this.touch()
       return
     }
     this.transitionTo(TagStatus.READY)
     this._uid = uid
+    this._resetAt = null
   }
 
   /**
@@ -187,16 +193,19 @@ export class NfcTag {
     this._petId = null
     this._activatedAt = null
     this._deactivatedAt = null
+    this._resetAt = new Date()
     this.touch()
   }
 
   /** Marca READY sem UID (Web NFC sem serialNumber) — Revisão 3. */
   markWrittenWithoutUid(): void {
     if (this._status === TagStatus.READY) {
+      this._resetAt = null
       this.touch()
       return
     }
     this.transitionTo(TagStatus.READY)
+    this._resetAt = null
   }
 
   markInStock(): void {
@@ -331,6 +340,9 @@ export class NfcTag {
   }
   get deactivatedAt(): Date | null {
     return this._deactivatedAt
+  }
+  get resetAt(): Date | null {
+    return this._resetAt
   }
   get createdAt(): Date {
     return this._createdAt

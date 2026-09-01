@@ -29,6 +29,7 @@ describe('NFC — verify/qr/list', () => {
 
       listUnactivated: jest.fn(),
       list: jest.fn(),
+      count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
     }
@@ -104,29 +105,28 @@ describe('NFC — verify/qr/list', () => {
   })
 
   describe('ListTagsUseCase', () => {
-    it('lista tags por batch', async () => {
-      tags.listByBatch.mockResolvedValue([readyTag()])
-      const useCase = new ListTagsUseCase(tags)
-
-      const result = await useCase.execute({ batchId: 'batch-1' })
-      expect(result).toHaveLength(1)
-    })
-
-    it('lista tags com filtros de status e paginação', async () => {
-      tags.list.mockResolvedValue([readyTag()])
+    it('pagina tags e devolve total (envelope)', async () => {
+      const tag = readyTag()
+      tags.list.mockResolvedValue([tag])
+      tags.count.mockResolvedValue(7)
       const useCase = new ListTagsUseCase(tags)
 
       const result = await useCase.execute({
         status: 'READY',
-        page: 1,
+        page: 2,
         limit: 20,
       })
+
       expect(tags.list).toHaveBeenCalledWith({
         status: 'READY',
-        page: 1,
+        page: 2,
         limit: 20,
       })
-      expect(result).toHaveLength(1)
+      expect(tags.count).toHaveBeenCalledWith({ status: 'READY' })
+      expect(result.total).toBe(7)
+      expect(result.page).toBe(2)
+      expect(result.limit).toBe(20)
+      expect(result.data).toHaveLength(1)
     })
   })
 })

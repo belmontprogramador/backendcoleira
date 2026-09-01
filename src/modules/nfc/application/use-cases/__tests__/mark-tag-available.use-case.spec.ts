@@ -21,6 +21,7 @@ describe('MarkTagAvailableUseCase', () => {
       listByPet: jest.fn(),
       listUnactivated: jest.fn(),
       list: jest.fn(),
+      count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
     }

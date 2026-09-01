@@ -19,6 +19,7 @@ describe('TagOwnership (policy anti-IDOR)', () => {
       petId: null,
       activatedAt: new Date(),
       deactivatedAt: null,
+      resetAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     })

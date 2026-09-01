@@ -98,6 +98,7 @@ describe('NfcTag (agregado)', () => {
       petId: null,
       activatedAt: null,
       deactivatedAt: null,
+      resetAt: null,
       createdAt: new Date('2024-01-01'),
       updatedAt: new Date('2024-01-01'),
     })
@@ -153,6 +154,49 @@ describe('NfcTag (agregado)', () => {
       expect(tag.activatedAt).toBeNull()
       expect(tag.publicId.value).toBe('7F4K9M2Q')
       expect(tag.activationCodeEncrypted).toBe('encrypted-code')
+    })
+
+    it('reset marca resetAt (sinaliza que foi resetado até regravar)', () => {
+      const tag = makeTag()
+      tag.markWritten(Uid.create('04:A7:32:91:8B:1F'))
+      tag.reset()
+
+      expect(tag.resetAt).not.toBeNull()
+    })
+
+    it('reset em tag CREATED fresca é no-op e NÃO marca resetAt', () => {
+      const tag = makeTag()
+      expect(tag.resetAt).toBeNull()
+
+      tag.reset()
+
+      expect(tag.resetAt).toBeNull()
+    })
+  })
+
+  describe('resetAt (flag de regravação)', () => {
+    it('markWritten limpa resetAt', () => {
+      const tag = makeTag()
+      tag.markWritten(Uid.create('04:A7:32:91:8B:1F'))
+      tag.reset()
+      expect(tag.resetAt).not.toBeNull()
+
+      tag.markWritten(Uid.create('04:A7:32:91:8B:2E'))
+
+      expect(tag.resetAt).toBeNull()
+      expect(tag.status).toBe(TagStatus.READY)
+    })
+
+    it('markWrittenWithoutUid limpa resetAt', () => {
+      const tag = makeTag()
+      tag.markWritten(Uid.create('04:A7:32:91:8B:1F'))
+      tag.reset()
+      expect(tag.resetAt).not.toBeNull()
+
+      tag.markWrittenWithoutUid()
+
+      expect(tag.resetAt).toBeNull()
+      expect(tag.status).toBe(TagStatus.READY)
     })
   })
 

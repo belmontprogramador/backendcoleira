@@ -175,6 +175,7 @@ describe('NFC — repositórios (integração)', () => {
       petId: 'pet-1',
       activatedAt: null,
       deactivatedAt: null,
+      resetAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     })

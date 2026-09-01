@@ -11,6 +11,7 @@ import type { NfcReaderPort } from '../../../domain/services/nfc-reader.port'
 import type { PublicBaseUrlPort } from '../../../domain/services/public-base-url.port'
 import type { AuditLoggerPort } from '../../../../../common/ports/audit-logger.port'
 import { NfcTag } from '../../../domain/entities/nfc-tag.entity'
+import { Batch, BatchStatus } from '../../../domain/entities/batch.entity'
 import { PublicId } from '../../../domain/value-objects/public-id.vo'
 
 describe('WriteNfcUseCase', () => {
@@ -35,6 +36,7 @@ describe('WriteNfcUseCase', () => {
 
       listUnactivated: jest.fn(),
       list: jest.fn(),
+      count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
     }
@@ -58,6 +60,18 @@ describe('WriteNfcUseCase', () => {
       activationCodeEncrypted: 'encrypted',
       batchId: 'batch-1',
     })
+  }
+
+  function generatedBatch(): Batch {
+    const batch = Batch.create({
+      id: 'batch-1',
+      name: 'Lote 001',
+      quantity: 10,
+      createdBy: 'operator-1',
+    })
+    batch.startGenerating()
+    batch.finishGeneration(10)
+    return batch
   }
 
   it('grava com sucesso (write→read→compare) e marca READY', async () => {
@@ -151,5 +165,21 @@ describe('WriteNfcUseCase', () => {
     expect(audit.log).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'tag_write' }),
     )
+  })
+
+  it('transiciona o lote GENERATED → WRITING na primeira gravação', async () => {
+    const tag = createdTag()
+    const batch = generatedBatch()
+    tags.findByPublicId.mockResolvedValue(tag)
+    tags.findByUid.mockResolvedValue(null)
+    batches.findById.mockResolvedValue(batch)
+    writer.write.mockResolvedValue(true)
+    reader.read.mockResolvedValue(URL)
+
+    await useCase.execute('operator-1', '7F4K9M2Q', '04:A7:32:91:8B:1F')
+
+    const savedBatch = batches.save.mock.calls[0][0]
+    expect(savedBatch.status).toBe(BatchStatus.WRITING)
+    expect(savedBatch.writtenCount).toBe(1)
   })
 })

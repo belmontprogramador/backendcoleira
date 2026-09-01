@@ -144,6 +144,17 @@ export class Batch {
     this.transitionTo(BatchStatus.WRITING)
   }
 
+  /**
+   * Garante que o lote está em WRITING ao iniciar a primeira gravação.
+   * Idempotente: só transiciona GENERATED → WRITING; demais status são no-op
+   * (desbloqueia o "Completar", que exige WRITING).
+   */
+  ensureWriting(): void {
+    if (this._status === BatchStatus.GENERATED) {
+      this.startWriting()
+    }
+  }
+
   complete(): void {
     this.transitionTo(BatchStatus.COMPLETED)
     this._completedAt = new Date()

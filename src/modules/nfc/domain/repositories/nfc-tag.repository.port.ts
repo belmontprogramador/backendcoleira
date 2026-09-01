@@ -18,6 +18,7 @@ export interface NfcTagRepositoryPort {
     page: number
     limit: number
   }): Promise<NfcTag[]>
+  count(filter: { status?: string; batchId?: string }): Promise<number>
   save(tag: NfcTag): Promise<void>
   saveMany(tags: NfcTag[]): Promise<void>
 }

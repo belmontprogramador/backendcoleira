@@ -37,7 +37,12 @@ export class PrismaNfcTagRepository implements NfcTagRepositoryPort {
         status: PrismaTagStatus.CREATED,
         ...(batchId ? { batch_id: batchId } : {}),
       },
-      orderBy: { created_at: 'asc' },
+      // Tags resetadas primeiro (mais recentes primeiro) — o operador quer
+      // regravar o card que acabou de resetar antes de seguir nas novas.
+      orderBy: [
+        { reset_at: { sort: 'desc', nulls: 'last' } },
+        { created_at: 'asc' },
+      ],
     })
     return model ? NfcTagMapper.toDomain(model) : null
   }
@@ -85,6 +90,18 @@ export class PrismaNfcTagRepository implements NfcTagRepositoryPort {
       orderBy: { created_at: 'desc' },
     })
     return models.map(NfcTagMapper.toDomain)
+  }
+
+  async count(filter: {
+    status?: string
+    batchId?: string
+  }): Promise<number> {
+    return this.prisma.nfcTag.count({
+      where: {
+        ...(filter.status ? { status: filter.status as never } : {}),
+        ...(filter.batchId ? { batch_id: filter.batchId } : {}),
+      },
+    })
   }
 
   async save(tag: NfcTag): Promise<void> {

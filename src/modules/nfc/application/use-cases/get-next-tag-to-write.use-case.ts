@@ -7,6 +7,7 @@ import type { PublicBaseUrlPort } from '../../domain/services/public-base-url.po
 export interface NextTagToWrite {
   publicId: string
   url: string
+  resetAt: Date | null
 }
 
 /**
@@ -31,6 +32,7 @@ export class GetNextTagToWriteUseCase {
     return {
       publicId: tag.publicId.value,
       url: this.baseUrl.buildProfileUrl(tag.publicId.value),
+      resetAt: tag.resetAt,
     }
   }
 }

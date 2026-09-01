@@ -28,6 +28,7 @@ describe('RedisPublicProfileInvalidation', () => {
 
       listUnactivated: jest.fn(),
       list: jest.fn(),
+      count: jest.fn(),
       save: jest.fn(),
       saveMany: jest.fn(),
     }
@@ -46,6 +47,7 @@ describe('RedisPublicProfileInvalidation', () => {
       petId: 'pet-1',
       activatedAt: null,
       deactivatedAt: null,
+      resetAt: null,
       createdAt: new Date('2026-01-01T00:00:00Z'),
       updatedAt: new Date('2026-01-01T00:00:00Z'),
     })
