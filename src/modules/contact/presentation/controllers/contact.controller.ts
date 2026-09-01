@@ -50,6 +50,7 @@ export class ContactController {
       senderEmail: body.sender_email ?? null,
       message: body.message,
       source: parseAccessSource(body.source),
+      ip: ip ?? null,
       ipHash: this.ipHasher.hash(ip),
       userAgent: userAgent ?? null,
     })

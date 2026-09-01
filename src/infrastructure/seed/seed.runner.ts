@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { PrismaService } from '../database/prisma.service'
 import type { PasswordHasherPort } from '../../common/ports/password-hasher.port'
+import { CONTACT_MESSAGES_FEATURE } from '../../common/constants/features'
 
 interface PermissionDef {
   code: string
@@ -52,6 +53,12 @@ const FEATURES = [
     name: 'Histórico de Acessos',
     description: 'Histórico de visualizações do perfil público',
   },
+  {
+    code: CONTACT_MESSAGES_FEATURE,
+    name: 'Mensagens de Contato',
+    description:
+      'Recebe mensagens de quem encontrar o pet, com localização aproximada',
+  },
 ]
 
 /**
@@ -73,7 +80,12 @@ const PLANS = [
     description: 'Dados médicos, múltiplos contatos e histórico de acessos',
     price_cents: 1990, // R$ 19,90/mês
     is_default: false,
-    features: ['PET_MEDICAL', 'MULTIPLE_CONTACTS', 'ACCESS_HISTORY'],
+    features: [
+      'PET_MEDICAL',
+      'MULTIPLE_CONTACTS',
+      'ACCESS_HISTORY',
+      CONTACT_MESSAGES_FEATURE,
+    ],
   },
 ]
 

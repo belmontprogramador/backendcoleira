@@ -39,12 +39,16 @@ export class PublicProfileController {
     @Ip() ip?: string,
     @Headers('user-agent') userAgent?: string,
   ): Promise<ReturnType<typeof PublicProfileResponseMapper.toResponse>> {
-    const profile = await this.getPublicProfile.execute({
+    const result = await this.getPublicProfile.execute({
       publicId,
       source: parseAccessSource(source),
+      ip: ip ?? null,
       ipHash: this.ipHasher.hash(ip),
       deviceType: userAgent ?? null,
     })
-    return PublicProfileResponseMapper.toResponse(profile)
+    return PublicProfileResponseMapper.toResponse(
+      result.profile,
+      result.contactEnabled,
+    )
   }
 }

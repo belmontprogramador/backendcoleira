@@ -7,6 +7,7 @@ import { AppModule } from './../src/app.module'
 import { PrismaService } from './../src/infrastructure/database/prisma.service'
 import { AesGcmActivationCodeCipher } from './../src/modules/nfc/infrastructure/generators/activation-code-cipher'
 import { flushRedis } from './helpers/flush-redis'
+import { makePremium } from './helpers/make-premium'
 
 type AuthBody = { accessToken: string; refreshToken: string }
 
@@ -31,6 +32,10 @@ describe('Perfil público (e2e)', () => {
 
   beforeEach(async () => {
     await flushRedis(process.env.REDIS_URL ?? 'redis://localhost:6379')
+    await prisma.subscription.deleteMany()
+    await prisma.planFeature.deleteMany()
+    await prisma.plan.deleteMany()
+    await prisma.feature.deleteMany()
     await prisma.accessEvent.deleteMany()
     await prisma.contactMessage.deleteMany()
     await prisma.nfcTag.deleteMany()
@@ -152,9 +157,32 @@ describe('Perfil público (e2e)', () => {
         email: null,
       },
       message: null,
+      contact_enabled: false,
     })
     expect(res.body).not.toHaveProperty('kind')
     expect(res.body).not.toHaveProperty('activation_code_encrypted')
+  })
+
+  it('habilita contato (contact_enabled=true) quando o dono é Premium', async () => {
+    const token = await createUser(
+      'u1',
+      'dono1@email.com',
+      'senhaForte123',
+      '+5521999999999',
+    )
+    await makePremium(prisma, 'u1')
+    await activateAndAssociate(token, '7F4K9M2Q', 'X8P4-L2Q9', {
+      name: 'Thor',
+      species: 'Cão',
+    })
+
+    const res = await request(app.getHttpServer())
+      .get('/p/7F4K9M2Q')
+      .expect(200)
+
+    expect((res.body as { contact_enabled: boolean }).contact_enabled).toBe(
+      true,
+    )
   })
 
   it('invalida o cache quando a privacidade muda', async () => {
@@ -205,6 +233,7 @@ describe('Perfil público (e2e)', () => {
       pet: null,
       owner: null,
       message: 'Este pingente ainda não foi ativado',
+      contact_enabled: false,
     })
   })
 

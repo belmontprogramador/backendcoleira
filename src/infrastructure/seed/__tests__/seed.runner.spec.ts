@@ -109,7 +109,7 @@ describe('SeedRunner (integração)', () => {
     expect(admin).not.toBeNull()
   })
 
-  it('cria os 2 planos e associa as 3 features ao Premium', async () => {
+  it('cria os 2 planos e associa as 4 features ao Premium', async () => {
     await runner.run()
 
     const plans = await prisma.plan.findMany({ orderBy: { code: 'asc' } })
@@ -126,6 +126,7 @@ describe('SeedRunner (integração)', () => {
     const features = await prisma.feature.findMany({ orderBy: { code: 'asc' } })
     expect(features.map(f => f.code)).toEqual([
       'ACCESS_HISTORY',
+      'CONTACT_MESSAGES',
       'MULTIPLE_CONTACTS',
       'PET_MEDICAL',
     ])
@@ -135,7 +136,12 @@ describe('SeedRunner (integração)', () => {
       include: { feature: true },
     })
     expect(premiumFeatures.map(pf => pf.feature.code).sort()).toEqual(
-      ['ACCESS_HISTORY', 'MULTIPLE_CONTACTS', 'PET_MEDICAL'].sort(),
+      [
+        'ACCESS_HISTORY',
+        'CONTACT_MESSAGES',
+        'MULTIPLE_CONTACTS',
+        'PET_MEDICAL',
+      ].sort(),
     )
 
     const basicFeatures = await prisma.planFeature.count({
@@ -190,7 +196,7 @@ describe('SeedRunner (integração)', () => {
     expect(roles).toBe(5)
     expect(permissions).toBe(20)
     expect(plans).toBe(2)
-    expect(features).toBe(3)
+    expect(features).toBe(4)
     expect(superAdmins).toBe(1)
 
     const systemUser = await prisma.user.count({

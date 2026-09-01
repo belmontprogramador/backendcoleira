@@ -14,6 +14,7 @@ import { CryptoModule } from './infrastructure/crypto/crypto.module'
 import { DatabaseModule } from './infrastructure/database/database.module'
 import { AuditModule } from './infrastructure/audit/audit.module'
 import { EmailModule } from './infrastructure/email/email.module'
+import { GeolocationModule } from './infrastructure/geolocation/geolocation.module'
 import { TemporaryTokenStoreModule } from './infrastructure/auth/temporary-token-store.module'
 import { RefreshTokenStoreModule } from './infrastructure/auth/refresh-token-store.module'
 import { RateLimitModule } from './infrastructure/rate-limit/rate-limit.module'
@@ -25,7 +26,6 @@ import { NfcModule } from './modules/nfc/nfc.module'
 import { OwnershipModule } from './modules/ownership/ownership.module'
 import { PublicProfileModule } from './modules/public-profile/public-profile.module'
 import { PublicProfileInvalidationModule } from './modules/public-profile/infrastructure/public-profile-invalidation.module'
-import { WhatsAppModule } from './infrastructure/whatsapp/whatsapp.module'
 import { AccessEventsModule } from './modules/access-events/access-events.module'
 import { ContactModule } from './modules/contact/contact.module'
 import { PlansModule } from './modules/plans/plans.module'
@@ -65,7 +65,7 @@ import { PetContactsModule } from './modules/pet-contacts/pet-contacts.module'
     CryptoModule,
     AuditModule,
     EmailModule,
-    WhatsAppModule,
+    GeolocationModule,
     TemporaryTokenStoreModule,
     RefreshTokenStoreModule,
     RateLimitModule,

@@ -3,13 +3,16 @@ import { AccessSource } from '../../../../../common/constants/access-source'
 import { TagNotFoundError } from '../../../../nfc/application/errors'
 import { PetNotFoundError } from '../../../../pets/application/errors'
 import { UserNotFoundError } from '../../../../users/application/errors'
+import { FeatureNotAvailableError } from '../../../../../common/errors/feature-not-available.error'
+import { CONTACT_MESSAGES_FEATURE } from '../../../../../common/constants/features'
 import { TagNotActivatedError } from '../../errors'
 import type { NfcTagRepositoryPort } from '../../../../nfc/domain/repositories/nfc-tag.repository.port'
 import type { PetRepositoryPort } from '../../../../pets/domain/repositories/pet.repository.port'
 import type { UserRepositoryPort } from '../../../../users/domain/repositories/user.repository.port'
 import type { ContactMessageRepositoryPort } from '../../../domain/repositories/contact-message.repository.port'
 import type { EmailSenderPort } from '../../../../../common/ports/email-sender.port'
-import type { WhatsAppSenderPort } from '../../../../../common/ports/whatsapp-sender.port'
+import type { FeatureAccessPort } from '../../../../../common/ports/feature-access.port'
+import type { IpGeolocationPort } from '../../../../../common/ports/ip-geolocation.port'
 import {
   NfcTag,
   TagStatus,
@@ -28,7 +31,8 @@ describe('SendContactMessageUseCase', () => {
   let users: jest.Mocked<UserRepositoryPort>
   let messages: jest.Mocked<ContactMessageRepositoryPort>
   let email: jest.Mocked<EmailSenderPort>
-  let whatsapp: jest.Mocked<WhatsAppSenderPort>
+  let featureAccess: jest.Mocked<FeatureAccessPort>
+  let geolocation: jest.Mocked<IpGeolocationPort>
   let useCase: SendContactMessageUseCase
 
   beforeEach(() => {
@@ -70,10 +74,12 @@ describe('SendContactMessageUseCase', () => {
       sendTransferEmail: jest.fn(),
       sendContactMessageEmail: jest.fn(),
     }
-    whatsapp = { sendContactMessage: jest.fn() }
+    featureAccess = { hasFeature: jest.fn(), listFeatures: jest.fn() }
+    geolocation = { resolve: jest.fn() }
 
     email.sendContactMessageEmail.mockResolvedValue(undefined)
-    whatsapp.sendContactMessage.mockResolvedValue(undefined)
+    featureAccess.hasFeature.mockResolvedValue(true)
+    geolocation.resolve.mockResolvedValue('São Paulo, SP, Brazil')
     messages.save.mockResolvedValue(undefined)
 
     useCase = new SendContactMessageUseCase(
@@ -82,7 +88,8 @@ describe('SendContactMessageUseCase', () => {
       users,
       messages,
       email,
-      whatsapp,
+      featureAccess,
+      geolocation,
     )
   })
 
@@ -117,13 +124,13 @@ describe('SendContactMessageUseCase', () => {
     })
   }
 
-  function makeOwner(phone: string | null = '(21) 99999-9999'): User {
+  function makeOwner(): User {
     return User.create({
       id: 'user-1',
       name: 'João Silva',
       email: Email.create('joao@example.com'),
       passwordHash: 'hash',
-      phone,
+      phone: '(21) 99999-9999',
     })
   }
 
@@ -133,11 +140,12 @@ describe('SendContactMessageUseCase', () => {
     senderPhone: '(21) 98888-7777',
     message: 'Achei seu cachorro!',
     source: AccessSource.QR,
+    ip: '187.22.1.1',
     ipHash: 'ip-hash',
     userAgent: 'iPhone',
   }
 
-  it('resolve tag→pet→owner, salva a mensagem e envia e-mail + WhatsApp', async () => {
+  it('resolve tag→pet→owner, gate premium, salva com localização e envia e-mail', async () => {
     tags.findByPublicId.mockResolvedValue(makeTag('pet-1'))
     pets.findById.mockResolvedValue(makePet())
     users.findById.mockResolvedValue(makeOwner())
@@ -148,6 +156,11 @@ describe('SendContactMessageUseCase', () => {
     expect(tags.findByPublicId).toHaveBeenCalledWith('7F4K9M2Q')
     expect(pets.findById).toHaveBeenCalledWith('pet-1')
     expect(users.findById).toHaveBeenCalledWith('user-1')
+    expect(featureAccess.hasFeature).toHaveBeenCalledWith(
+      'user-1',
+      CONTACT_MESSAGES_FEATURE,
+    )
+    expect(geolocation.resolve).toHaveBeenCalledWith('187.22.1.1')
 
     const saved = messages.save.mock.calls[0][0]
     expect(messages.save).toHaveBeenCalledTimes(1)
@@ -156,6 +169,7 @@ describe('SendContactMessageUseCase', () => {
     expect(saved.nfcTagId).toBe('tag-1')
     expect(saved.message).toBe('Achei seu cachorro!')
     expect(saved.source).toBe(AccessSource.QR)
+    expect(saved.locationApprox).toBe('São Paulo, SP, Brazil')
 
     expect(email.sendContactMessageEmail).toHaveBeenCalledWith(
       'joao@example.com',
@@ -163,12 +177,23 @@ describe('SendContactMessageUseCase', () => {
         petName: 'Thor',
         message: 'Achei seu cachorro!',
         senderName: 'Ana',
+        location: 'São Paulo, SP, Brazil',
       }),
     )
-    expect(whatsapp.sendContactMessage).toHaveBeenCalledWith(
-      '(21) 99999-9999',
-      expect.stringContaining('Achei seu cachorro!'),
+  })
+
+  it('lança FeatureNotAvailableError quando o dono não é Premium', async () => {
+    tags.findByPublicId.mockResolvedValue(makeTag('pet-1'))
+    pets.findById.mockResolvedValue(makePet())
+    users.findById.mockResolvedValue(makeOwner())
+    featureAccess.hasFeature.mockResolvedValue(false)
+
+    await expect(useCase.execute(baseInput)).rejects.toThrow(
+      FeatureNotAvailableError,
     )
+    expect(messages.save).not.toHaveBeenCalled()
+    expect(email.sendContactMessageEmail).not.toHaveBeenCalled()
+    expect(geolocation.resolve).not.toHaveBeenCalled()
   })
 
   it('lança TagNotFoundError quando a tag não existe', async () => {
@@ -218,31 +243,6 @@ describe('SendContactMessageUseCase', () => {
     expect(messages.save).not.toHaveBeenCalled()
   })
 
-  it('não envia WhatsApp quando o tutor não tem telefone', async () => {
-    tags.findByPublicId.mockResolvedValue(makeTag('pet-1'))
-    pets.findById.mockResolvedValue(makePet())
-    users.findById.mockResolvedValue(makeOwner(null))
-
-    const result = await useCase.execute(baseInput)
-
-    expect(result).toEqual({ messageId: 'message-uuid-1' })
-    expect(email.sendContactMessageEmail).toHaveBeenCalled()
-    expect(whatsapp.sendContactMessage).not.toHaveBeenCalled()
-  })
-
-  it('retorna sucesso mesmo se o WhatsApp falhar (e-mail já enviado)', async () => {
-    tags.findByPublicId.mockResolvedValue(makeTag('pet-1'))
-    pets.findById.mockResolvedValue(makePet())
-    users.findById.mockResolvedValue(makeOwner())
-    whatsapp.sendContactMessage.mockRejectedValue(new Error('WhatsApp down'))
-
-    const result = await useCase.execute(baseInput)
-
-    expect(result).toEqual({ messageId: 'message-uuid-1' })
-    expect(email.sendContactMessageEmail).toHaveBeenCalled()
-    expect(messages.save).toHaveBeenCalled()
-  })
-
   it('retorna sucesso mesmo se o e-mail falhar (mensagem persiste no inbox)', async () => {
     tags.findByPublicId.mockResolvedValue(makeTag('pet-1'))
     pets.findById.mockResolvedValue(makePet())
@@ -255,10 +255,11 @@ describe('SendContactMessageUseCase', () => {
     expect(messages.save).toHaveBeenCalled()
   })
 
-  it('normaliza campos opcionais ausentes para null', async () => {
+  it('normaliza campos opcionais ausentes para null (sem localização se geo null)', async () => {
     tags.findByPublicId.mockResolvedValue(makeTag('pet-1'))
     pets.findById.mockResolvedValue(makePet())
     users.findById.mockResolvedValue(makeOwner())
+    geolocation.resolve.mockResolvedValue(null)
 
     await useCase.execute({
       publicId: '7F4K9M2Q',
@@ -272,5 +273,6 @@ describe('SendContactMessageUseCase', () => {
     expect(saved.senderEmail).toBeNull()
     expect(saved.ipHash).toBeNull()
     expect(saved.userAgent).toBeNull()
+    expect(saved.locationApprox).toBeNull()
   })
 })

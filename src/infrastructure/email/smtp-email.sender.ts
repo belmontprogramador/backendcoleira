@@ -144,13 +144,15 @@ export class SmtpEmailSender implements EmailSenderPort {
       `Nova mensagem de contato sobre ${data.petName}.\n\n` +
       `De: ${data.senderName ?? 'Anônimo'}\n` +
       `Telefone: ${data.senderPhone ?? '—'}\n` +
-      `E-mail: ${data.senderEmail ?? '—'}\n\n` +
+      `E-mail: ${data.senderEmail ?? '—'}\n` +
+      `Localização aproximada: ${data.location ?? '—'}\n\n` +
       `Mensagem:\n${data.message}`
     const html =
       `<h1>Nova mensagem sobre ${data.petName}</h1>` +
       `<p><strong>De:</strong> ${data.senderName ?? 'Anônimo'}</p>` +
       `<p><strong>Telefone:</strong> ${data.senderPhone ?? '—'}</p>` +
       `<p><strong>E-mail:</strong> ${data.senderEmail ?? '—'}</p>` +
+      `<p><strong>Localização aproximada:</strong> ${data.location ?? '—'}</p>` +
       `<p>${data.message}</p>`
     await this.send(to, subject, html, text)
   }

@@ -3,6 +3,7 @@ import { NfcModule } from '../nfc/nfc.module'
 import { PetsModule } from '../pets/pets.module'
 import { UsersModule } from '../users/users.module'
 import { AccessEventsModule } from '../access-events/access-events.module'
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module'
 import { GetPublicProfileUseCase } from './application/use-cases/get-public-profile.use-case'
 import { PublicProfileController } from './presentation/controllers/public-profile.controller'
 
@@ -14,7 +15,13 @@ import { PublicProfileController } from './presentation/controllers/public-profi
  * `PublicProfileInvalidationModule` (@Global), registrado separadamente.
  */
 @Module({
-  imports: [NfcModule, PetsModule, UsersModule, AccessEventsModule],
+  imports: [
+    NfcModule,
+    PetsModule,
+    UsersModule,
+    AccessEventsModule,
+    SubscriptionsModule,
+  ],
   controllers: [PublicProfileController],
   providers: [GetPublicProfileUseCase],
 })

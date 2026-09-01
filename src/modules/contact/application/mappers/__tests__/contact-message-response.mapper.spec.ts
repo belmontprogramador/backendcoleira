@@ -15,6 +15,7 @@ describe('ContactMessageResponseMapper', () => {
       source: AccessSource.QR,
       ipHash: 'ip-hash-secreto',
       userAgent: 'iPhone',
+      locationApprox: 'São Paulo, SP, Brazil',
       readAt: new Date('2026-06-01T12:00:00Z'),
       createdAt: new Date('2026-01-01T00:00:00Z'),
     })
@@ -29,6 +30,7 @@ describe('ContactMessageResponseMapper', () => {
       senderEmail: 'ana@example.com',
       message: 'Achei seu cachorro!',
       source: AccessSource.QR,
+      locationApprox: 'São Paulo, SP, Brazil',
       isRead: true,
       readAt: new Date('2026-06-01T12:00:00Z'),
       createdAt: new Date('2026-01-01T00:00:00Z'),
@@ -51,6 +53,7 @@ describe('ContactMessageResponseMapper', () => {
       source: AccessSource.DIRECT,
       ipHash: null,
       userAgent: null,
+      locationApprox: null,
       readAt: null,
       createdAt: new Date('2026-01-01T00:00:00Z'),
     })

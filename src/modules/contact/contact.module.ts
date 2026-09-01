@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { NfcModule } from '../nfc/nfc.module'
 import { PetsModule } from '../pets/pets.module'
 import { UsersModule } from '../users/users.module'
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module'
 import { CONTACT_MESSAGE_REPOSITORY_PORT } from './domain/repositories/contact-message.repository.port'
 import { PrismaContactMessageRepository } from './infrastructure/repositories/prisma-contact-message.repository'
 import { SendContactMessageUseCase } from './application/use-cases/send-contact-message.use-case'
@@ -17,7 +18,7 @@ import { ContactsController } from './presentation/controllers/contacts.controll
  * e inbox do tutor.
  */
 @Module({
-  imports: [NfcModule, PetsModule, UsersModule],
+  imports: [NfcModule, PetsModule, UsersModule, SubscriptionsModule],
   controllers: [ContactController, ContactsController],
   providers: [
     PrismaContactMessageRepository,

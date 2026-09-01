@@ -67,6 +67,7 @@ describe('ContactMessage — repositório (integração)', () => {
       source: AccessSource.QR,
       senderName: 'Ana',
       senderPhone: '(21) 98888-7777',
+      locationApprox: 'São Paulo, SP, Brazil',
     })
   }
 
@@ -83,6 +84,7 @@ describe('ContactMessage — repositório (integração)', () => {
         source: AccessSource.DIRECT,
         ipHash: null,
         userAgent: null,
+        locationApprox: null,
         readAt: null,
         createdAt,
       }),
@@ -102,6 +104,7 @@ describe('ContactMessage — repositório (integração)', () => {
     expect(found?.sender_name).toBe('Ana')
     expect(found?.sender_phone).toBe('(21) 98888-7777')
     expect(found?.source).toBe('QR')
+    expect(found?.location_approx).toBe('São Paulo, SP, Brazil')
     expect(found?.read_at).toBeNull()
   })
 
@@ -134,6 +137,7 @@ describe('ContactMessage — repositório (integração)', () => {
     expect(msg?.petId).toBe('pet-1')
     expect(msg?.message).toBe('Achei seu cachorro!')
     expect(msg?.senderName).toBe('Ana')
+    expect(msg?.locationApprox).toBe('São Paulo, SP, Brazil')
     expect(msg?.source).toBe(AccessSource.QR)
   })
 
@@ -172,6 +176,7 @@ describe('ContactMessage — repositório (integração)', () => {
         source: AccessSource.DIRECT,
         ipHash: null,
         userAgent: null,
+        locationApprox: null,
         readAt: null,
         createdAt: new Date('2026-02-01T00:00:00Z'),
       }),
@@ -199,6 +204,7 @@ describe('ContactMessage — repositório (integração)', () => {
         source: AccessSource.DIRECT,
         ipHash: null,
         userAgent: null,
+        locationApprox: null,
         readAt: null,
         createdAt: new Date('2026-02-01T00:00:00Z'),
       }),

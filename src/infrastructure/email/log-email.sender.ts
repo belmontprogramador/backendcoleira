@@ -56,7 +56,7 @@ export class LogEmailSender implements EmailSenderPort {
     data: ContactMessageEmailData,
   ): Promise<void> {
     this.logger.log(
-      `[contato] para=${to} pet=${data.petName} de=${data.senderName ?? 'anônimo'}`,
+      `[contato] para=${to} pet=${data.petName} de=${data.senderName ?? 'anônimo'} localização=${data.location ?? '—'}`,
     )
     return Promise.resolve()
   }

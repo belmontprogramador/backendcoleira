@@ -24,6 +24,11 @@ async function bootstrap(): Promise<void> {
   // Hardening OWASP A05: headers de segurança (Helmet) + CORS explícito.
   app.use(helmet())
 
+  // Trust proxy: em produção o app fica atrás do Cloudflare. Sem isso,
+  // `req.ip` (usado por `@Ip()`, rate limit e IP→geo) vê o IP do proxy,
+  // não o do visitante.
+  app.set('trust proxy', 1)
+
   const corsOrigins = (env.CORS_ORIGINS ?? '')
     .split(',')
     .map(origin => origin.trim())

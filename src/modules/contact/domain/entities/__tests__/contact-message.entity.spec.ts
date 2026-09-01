@@ -12,12 +12,14 @@ describe('ContactMessage (entity)', () => {
       message: '  Achei seu cachorro!  ',
       source: AccessSource.QR,
       senderName: 'Ana',
+      locationApprox: 'São Paulo, SP, Brazil',
     })
 
     expect(msg.id).toBe('msg-1')
     expect(msg.message).toBe('Achei seu cachorro!')
     expect(msg.source).toBe(AccessSource.QR)
     expect(msg.senderName).toBe('Ana')
+    expect(msg.locationApprox).toBe('São Paulo, SP, Brazil')
     expect(msg.isRead).toBe(false)
     expect(msg.readAt).toBeNull()
   })
@@ -64,12 +66,14 @@ describe('ContactMessage (entity)', () => {
       source: AccessSource.NFC,
       ipHash: 'hash',
       userAgent: 'Mozilla/5.0',
+      locationApprox: 'São Paulo, SP, Brazil',
       readAt,
       createdAt,
     })
 
     expect(msg.senderEmail).toBe('ana@example.com')
     expect(msg.senderPhone).toBe('+5511999999999')
+    expect(msg.locationApprox).toBe('São Paulo, SP, Brazil')
     expect(msg.readAt).toEqual(readAt)
     expect(msg.createdAt).toEqual(createdAt)
     expect(msg.isRead).toBe(true)

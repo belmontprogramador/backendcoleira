@@ -4,10 +4,13 @@ import { TagNotFoundError } from '../../../../nfc/application/errors'
 import { PetNotFoundError } from '../../../../pets/application/errors'
 import { UserNotFoundError } from '../../../../users/application/errors'
 import { AccessSource } from '../../../../../common/constants/access-source'
+import { CONTACT_MESSAGES_FEATURE } from '../../../../../common/constants/features'
 import type { NfcTagRepositoryPort } from '../../../../nfc/domain/repositories/nfc-tag.repository.port'
 import type { PetRepositoryPort } from '../../../../pets/domain/repositories/pet.repository.port'
 import type { UserRepositoryPort } from '../../../../users/domain/repositories/user.repository.port'
 import type { CachePort } from '../../../../../common/ports/cache.port'
+import type { FeatureAccessPort } from '../../../../../common/ports/feature-access.port'
+import type { IpGeolocationPort } from '../../../../../common/ports/ip-geolocation.port'
 import type { RegisterAccessEventUseCase } from '../../../../access-events/application/use-cases/register-access-event.use-case'
 import {
   profileCacheKey,
@@ -29,6 +32,8 @@ describe('GetPublicProfileUseCase', () => {
   let pets: jest.Mocked<PetRepositoryPort>
   let users: jest.Mocked<UserRepositoryPort>
   let cache: jest.Mocked<CachePort>
+  let featureAccess: jest.Mocked<FeatureAccessPort>
+  let geolocation: jest.Mocked<IpGeolocationPort>
   let registerAccessEvent: jest.Mocked<RegisterAccessEventUseCase>
   let useCase: GetPublicProfileUseCase
 
@@ -66,15 +71,21 @@ describe('GetPublicProfileUseCase', () => {
       ping: jest.fn(),
       quit: jest.fn(),
     }
+    featureAccess = { hasFeature: jest.fn(), listFeatures: jest.fn() }
+    geolocation = { resolve: jest.fn() }
     registerAccessEvent = {
       execute: jest.fn(),
     } as jest.Mocked<RegisterAccessEventUseCase>
     cache.get.mockResolvedValue(null)
+    featureAccess.hasFeature.mockResolvedValue(false)
+    geolocation.resolve.mockResolvedValue('São Paulo, SP, Brazil')
     useCase = new GetPublicProfileUseCase(
       tags,
       pets,
       users,
       cache,
+      featureAccess,
+      geolocation,
       registerAccessEvent,
     )
   })
@@ -136,11 +147,12 @@ describe('GetPublicProfileUseCase', () => {
 
     const result = await useCase.execute({ publicId: '7F4K9M2Q' })
 
-    expect(result.isActive).toBe(false)
-    expect(result.kind).toBe('UNAVAILABLE')
-    expect(result.pet).toBeNull()
-    expect(result.owner).toBeNull()
-    expect(result.message).toBe('Este pingente ainda não foi ativado')
+    expect(result.profile.isActive).toBe(false)
+    expect(result.profile.kind).toBe('UNAVAILABLE')
+    expect(result.profile.pet).toBeNull()
+    expect(result.profile.owner).toBeNull()
+    expect(result.profile.message).toBe('Este pingente ainda não foi ativado')
+    expect(result.contactEnabled).toBe(false)
     expect(pets.findById).not.toHaveBeenCalled()
     expect(registerAccessEvent.execute).toHaveBeenCalledWith(
       expect.objectContaining({ petId: null, nfcTagId: 'tag-1' }),
@@ -156,8 +168,8 @@ describe('GetPublicProfileUseCase', () => {
 
     const result = await useCase.execute({ publicId: '7F4K9M2Q' })
 
-    expect(result.isActive).toBe(false)
-    expect(result.pet).toBeNull()
+    expect(result.profile.isActive).toBe(false)
+    expect(result.profile.pet).toBeNull()
     expect(users.findById).not.toHaveBeenCalled()
   })
 
@@ -195,21 +207,40 @@ describe('GetPublicProfileUseCase', () => {
 
     const result = await useCase.execute({ publicId: '7F4K9M2Q' })
 
-    expect(result.isActive).toBe(true)
-    expect(result.kind).toBe('ACTIVE')
-    expect(result.pet?.name).toBe('Thor')
-    expect(result.pet?.species).toBe('Cão')
-    expect(result.owner?.name).toBe('João Silva')
-    expect(result.owner?.phone).toBe('(21) 99999-9999')
+    expect(result.profile.isActive).toBe(true)
+    expect(result.profile.kind).toBe('ACTIVE')
+    expect(result.profile.pet?.name).toBe('Thor')
+    expect(result.profile.pet?.species).toBe('Cão')
+    expect(result.profile.owner?.name).toBe('João Silva')
+    expect(result.profile.owner?.phone).toBe('(21) 99999-9999')
     // show_email default = false → email oculto
-    expect(result.owner?.email).toBeNull()
+    expect(result.profile.owner?.email).toBeNull()
+    expect(result.contactEnabled).toBe(false)
     expect(tags.findByPublicId).toHaveBeenCalledWith('7F4K9M2Q')
     expect(pets.findById).toHaveBeenCalledWith('pet-1')
     expect(users.findById).toHaveBeenCalledWith('user-1')
   })
 
+  it('habilita contato (contactEnabled=true) quando o dono tem a feature', async () => {
+    const tag = makeTag('pet-1')
+    const pet = makePet()
+    const owner = makeOwner()
+    tags.findByPublicId.mockResolvedValue(tag)
+    pets.findById.mockResolvedValue(pet)
+    users.findById.mockResolvedValue(owner)
+    featureAccess.hasFeature.mockResolvedValue(true)
+
+    const result = await useCase.execute({ publicId: '7F4K9M2Q' })
+
+    expect(result.contactEnabled).toBe(true)
+    expect(featureAccess.hasFeature).toHaveBeenCalledWith(
+      'user-1',
+      CONTACT_MESSAGES_FEATURE,
+    )
+  })
+
   describe('side-effect de registro de acesso', () => {
-    it('registra o acesso com source, ip e device', async () => {
+    it('registra o acesso com source, ip, device e localização', async () => {
       const tag = makeTag('pet-1')
       const pet = makePet()
       const owner = makeOwner()
@@ -220,6 +251,7 @@ describe('GetPublicProfileUseCase', () => {
       await useCase.execute({
         publicId: '7F4K9M2Q',
         source: AccessSource.QR,
+        ip: '187.22.1.1',
         ipHash: 'ip-hash',
         deviceType: 'iPhone',
       })
@@ -230,7 +262,9 @@ describe('GetPublicProfileUseCase', () => {
         source: AccessSource.QR,
         ipHash: 'ip-hash',
         deviceType: 'iPhone',
+        locationApprox: 'São Paulo, SP, Brazil',
       })
+      expect(geolocation.resolve).toHaveBeenCalledWith('187.22.1.1')
     })
 
     it('não derruba o perfil quando o registro de acesso falha (RNF10)', async () => {
@@ -244,8 +278,8 @@ describe('GetPublicProfileUseCase', () => {
 
       const result = await useCase.execute({ publicId: '7F4K9M2Q' })
 
-      expect(result.isActive).toBe(true)
-      expect(result.pet?.name).toBe('Thor')
+      expect(result.profile.isActive).toBe(true)
+      expect(result.profile.pet?.name).toBe('Thor')
     })
   })
 
@@ -258,8 +292,8 @@ describe('GetPublicProfileUseCase', () => {
 
       const result = await useCase.execute({ publicId: '7F4K9M2Q' })
 
-      expect(result.isActive).toBe(true)
-      expect(result.pet?.name).toBe('Thor')
+      expect(result.profile.isActive).toBe(true)
+      expect(result.profile.pet?.name).toBe('Thor')
       expect(tags.findByPublicId).toHaveBeenCalled()
       expect(registerAccessEvent.execute).toHaveBeenCalled()
       expect(pets.findById).not.toHaveBeenCalled()

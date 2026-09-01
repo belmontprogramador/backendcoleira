@@ -14,6 +14,7 @@ export interface ContactMessageResponse {
   senderEmail: string | null
   message: string
   source: AccessSource
+  locationApprox: string | null
   isRead: boolean
   readAt: Date | null
   createdAt: Date
@@ -29,6 +30,7 @@ export class ContactMessageResponseMapper {
       senderEmail: message.senderEmail,
       message: message.message,
       source: message.source,
+      locationApprox: message.locationApprox,
       isRead: message.isRead,
       readAt: message.readAt,
       createdAt: message.createdAt,

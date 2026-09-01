@@ -55,23 +55,27 @@ describe('SubscriptionsController', () => {
 
   it('current: retorna null quando não há assinatura', async () => {
     getSubscription.execute.mockResolvedValue(null)
+    const res = { json: jest.fn().mockReturnValue(undefined) }
 
-    const result = await controller.current(user)
+    await controller.current(user, res as never)
 
-    expect(result).toBeNull()
+    expect(res.json).toHaveBeenCalledWith(null)
     expect(getSubscription.execute).toHaveBeenCalledWith('user-1')
   })
 
   it('current: mapeia assinatura ativa para response', async () => {
     getSubscription.execute.mockResolvedValue(makeSubscription())
+    const res = { json: jest.fn().mockReturnValue(undefined) }
 
-    const result = await controller.current(user)
+    await controller.current(user, res as never)
 
-    expect(result).toMatchObject({
-      id: 'sub-1',
-      planId: 'plan-1',
-      status: 'ACTIVE',
-    })
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'sub-1',
+        planId: 'plan-1',
+        status: 'ACTIVE',
+      }),
+    )
   })
 
   it('checkout: delega ao use case com payerEmail do JWT', async () => {

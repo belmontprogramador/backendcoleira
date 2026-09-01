@@ -7,6 +7,11 @@ import { USER_REPOSITORY_PORT } from '../../../users/domain/repositories/user.re
 import type { UserRepositoryPort } from '../../../users/domain/repositories/user.repository.port'
 import { CACHE_PORT } from '../../../../common/ports/cache.port'
 import type { CachePort } from '../../../../common/ports/cache.port'
+import { FEATURE_ACCESS_PORT } from '../../../../common/ports/feature-access.port'
+import type { FeatureAccessPort } from '../../../../common/ports/feature-access.port'
+import { IP_GEOLOCATION_PORT } from '../../../../common/ports/ip-geolocation.port'
+import type { IpGeolocationPort } from '../../../../common/ports/ip-geolocation.port'
+import { CONTACT_MESSAGES_FEATURE } from '../../../../common/constants/features'
 import { AccessSource } from '../../../../common/constants/access-source'
 import { RegisterAccessEventUseCase } from '../../../access-events/application/use-cases/register-access-event.use-case'
 import {
@@ -24,8 +29,15 @@ import type { NfcTag } from '../../../nfc/domain/entities/nfc-tag.entity'
 export interface GetPublicProfileInput {
   publicId: string
   source?: AccessSource
+  ip?: string | null
   ipHash?: string | null
   deviceType?: string | null
+}
+
+export interface PublicProfileResult {
+  profile: PublicProfile
+  /** Dono é Premium com a feature `CONTACT_MESSAGES`? (gate do formulário). */
+  contactEnabled: boolean
 }
 
 /**
@@ -39,9 +51,13 @@ export interface GetPublicProfileInput {
  * Cache (Redis via `CachePort`): chave `profile:{publicId}`. Hit devolve direto;
  * miss monta e popula. TTL 300s (60s se pet perdido).
  *
- * Side-effect (RF18): registra o `AccessEvent` a cada acesso. A tag é resolvida
- * sempre (antes do cache) para permitir o registro mesmo em cache hit. A falha
- * do registro é engolida (RNF10) — nunca derruba o perfil.
+ * `contactEnabled` é calculado AO VIVO (não cacheado) — resolve a feature
+ * `CONTACT_MESSAGES` do dono a cada request. Assim o gate de mensagem nunca
+ * fica defasado quando o plano do dono muda (upgrade/downgrade).
+ *
+ * Side-effect (RF18): registra o `AccessEvent` a cada acesso, agora com a
+ * localização aproximada do visitante (IP→geo, best-effort). A falha do
+ * registro é engolida (RNF10) — nunca derruba o perfil.
  *
  * NUNCA expõe dados administrativos (senha, email administrativo, código de
  * ativação, uid, tokens). Public ID não é credencial (Fase 3).
@@ -56,10 +72,14 @@ export class GetPublicProfileUseCase {
     @Inject(USER_REPOSITORY_PORT)
     private readonly users: UserRepositoryPort,
     @Inject(CACHE_PORT) private readonly cache: CachePort,
+    @Inject(FEATURE_ACCESS_PORT)
+    private readonly featureAccess: FeatureAccessPort,
+    @Inject(IP_GEOLOCATION_PORT)
+    private readonly geolocation: IpGeolocationPort,
     private readonly registerAccessEvent: RegisterAccessEventUseCase,
   ) {}
 
-  async execute(input: GetPublicProfileInput): Promise<PublicProfile> {
+  async execute(input: GetPublicProfileInput): Promise<PublicProfileResult> {
     const publicId = input.publicId
     const key = profileCacheKey(publicId.toUpperCase())
 
@@ -73,17 +93,21 @@ export class GetPublicProfileUseCase {
     await this.trackAccess(tag, input)
 
     const cached = await this.cache.get(key)
-    if (cached) {
-      return PublicProfile.fromJSON(JSON.parse(cached) as PublicProfileJson)
-    }
+    const profile = cached
+      ? PublicProfile.fromJSON(JSON.parse(cached) as PublicProfileJson)
+      : await this.buildAndCache(tag, key)
 
-    const profile = await this.build(tag)
-    await this.cache.set(
-      key,
-      JSON.stringify(profile.toJSON()),
-      this.ttlFor(profile),
-    )
-    return profile
+    // Gate de mensagem: calculado ao vivo (não cacheado) — reflete o plano
+    // atual do dono sem precisar invalidar o cache em mudança de assinatura.
+    const contactEnabled =
+      profile.isActive && tag.ownerId
+        ? await this.featureAccess.hasFeature(
+            tag.ownerId,
+            CONTACT_MESSAGES_FEATURE,
+          )
+        : false
+
+    return { profile, contactEnabled }
   }
 
   private async trackAccess(
@@ -91,16 +115,31 @@ export class GetPublicProfileUseCase {
     input: GetPublicProfileInput,
   ): Promise<void> {
     try {
+      const locationApprox = await this.geolocation.resolve(input.ip ?? null)
       await this.registerAccessEvent.execute({
         petId: tag.petId,
         nfcTagId: tag.id,
         source: input.source ?? AccessSource.DIRECT,
         ipHash: input.ipHash ?? null,
         deviceType: input.deviceType ?? null,
+        locationApprox,
       })
     } catch {
       // RNF10: falha no registro de acesso nunca derruba o perfil.
     }
+  }
+
+  private async buildAndCache(
+    tag: NfcTag,
+    key: string,
+  ): Promise<PublicProfile> {
+    const profile = await this.build(tag)
+    await this.cache.set(
+      key,
+      JSON.stringify(profile.toJSON()),
+      this.ttlFor(profile),
+    )
+    return profile
   }
 
   private async build(tag: NfcTag): Promise<PublicProfile> {

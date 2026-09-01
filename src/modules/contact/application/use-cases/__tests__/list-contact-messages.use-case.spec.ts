@@ -52,6 +52,7 @@ describe('ListContactMessagesUseCase', () => {
       source: AccessSource.QR,
       ipHash: 'ip-hash',
       userAgent: 'iPhone',
+      locationApprox: null,
       readAt: null,
       createdAt: new Date('2026-01-01T00:00:00Z'),
     })

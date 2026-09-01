@@ -18,6 +18,7 @@ export interface CreateContactMessageProps {
   source: AccessSource
   ipHash?: string | null
   userAgent?: string | null
+  locationApprox?: string | null
 }
 
 export interface ReconstructContactMessageProps {
@@ -31,6 +32,7 @@ export interface ReconstructContactMessageProps {
   source: AccessSource
   ipHash: string | null
   userAgent: string | null
+  locationApprox: string | null
   readAt: Date | null
   createdAt: Date
 }
@@ -51,6 +53,7 @@ export class ContactMessage {
     private readonly _source: AccessSource,
     private readonly _ipHash: string | null,
     private readonly _userAgent: string | null,
+    private readonly _locationApprox: string | null,
     private _readAt: Date | null,
     private readonly _createdAt: Date,
   ) {}
@@ -71,6 +74,7 @@ export class ContactMessage {
       props.source,
       props.ipHash ?? null,
       props.userAgent ?? null,
+      props.locationApprox ?? null,
       null,
       new Date(),
     )
@@ -88,6 +92,7 @@ export class ContactMessage {
       props.source,
       props.ipHash,
       props.userAgent,
+      props.locationApprox,
       props.readAt,
       props.createdAt,
     )
@@ -129,6 +134,9 @@ export class ContactMessage {
   }
   get userAgent(): string | null {
     return this._userAgent
+  }
+  get locationApprox(): string | null {
+    return this._locationApprox
   }
   get readAt(): Date | null {
     return this._readAt

@@ -46,6 +46,7 @@ describe('ContactController', () => {
       senderEmail: 'ana@example.com',
       message: 'Achei seu cachorro!',
       source: AccessSource.QR,
+      ip: '192.168.0.1',
       ipHash: 'hashed-192.168.0.1',
       userAgent: 'iPhone',
     })
@@ -59,6 +60,7 @@ describe('ContactController', () => {
     expect(sendContactMessage.execute).toHaveBeenCalledWith(
       expect.objectContaining({
         source: AccessSource.DIRECT,
+        ip: null,
         ipHash: null,
         userAgent: null,
         senderName: null,

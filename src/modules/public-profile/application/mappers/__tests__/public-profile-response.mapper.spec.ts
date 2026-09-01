@@ -36,6 +36,7 @@ describe('PublicProfileResponseMapper', () => {
 
     const response = PublicProfileResponseMapper.toResponse(
       PublicProfile.active(pet, makeOwner()),
+      true,
     )
 
     expect(response).toEqual({
@@ -56,12 +57,14 @@ describe('PublicProfileResponseMapper', () => {
         email: null,
       },
       message: null,
+      contact_enabled: true,
     })
   })
 
   it('mapeia pingente não ativado (pet/owner null)', () => {
     const response = PublicProfileResponseMapper.toResponse(
       PublicProfile.unactivated('AVAILABLE'),
+      false,
     )
 
     expect(response).toEqual({
@@ -69,12 +72,14 @@ describe('PublicProfileResponseMapper', () => {
       pet: null,
       owner: null,
       message: 'Este pingente ainda não foi ativado',
+      contact_enabled: false,
     })
   })
 
   it('não expõe a flag interna kind', () => {
     const response = PublicProfileResponseMapper.toResponse(
       PublicProfile.unactivated('AVAILABLE'),
+      false,
     )
 
     expect(response).not.toHaveProperty('kind')

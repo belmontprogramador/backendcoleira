@@ -18,6 +18,7 @@ export interface PublicProfileResponse {
     email: string | null
   } | null
   message: string | null
+  contact_enabled: boolean
 }
 
 /**
@@ -27,7 +28,10 @@ export interface PublicProfileResponse {
  * NÃO expõe a flag interna `kind` nem dados administrativos.
  */
 export class PublicProfileResponseMapper {
-  static toResponse(profile: PublicProfile): PublicProfileResponse {
+  static toResponse(
+    profile: PublicProfile,
+    contactEnabled: boolean,
+  ): PublicProfileResponse {
     return {
       status: profile.status,
       pet: profile.pet
@@ -50,6 +54,7 @@ export class PublicProfileResponseMapper {
           }
         : null,
       message: profile.message,
+      contact_enabled: contactEnabled,
     }
   }
 }

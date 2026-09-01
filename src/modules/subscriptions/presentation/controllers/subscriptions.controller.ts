@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Post } from '@nestjs/common'
+import { Body, Controller, Get, Post, Res } from '@nestjs/common'
+import type { Response } from 'express'
 import { GetSubscriptionUseCase } from '../../application/use-cases/get-subscription.use-case'
 import { GetUserPlanFeaturesUseCase } from '../../application/use-cases/get-user-plan-features.use-case'
 import { InitiateSubscriptionCheckoutUseCase } from '../../application/use-cases/initiate-subscription-checkout.use-case'
@@ -27,11 +28,11 @@ export class SubscriptionsController {
   ) {}
 
   @Get('current')
-  async current(@CurrentUser() user: RequestUser) {
+  async current(@CurrentUser() user: RequestUser, @Res() res: Response) {
     const subscription = await this.getSubscription.execute(user.sub)
-    return subscription
-      ? SubscriptionResponseMapper.toResponse(subscription)
-      : null
+    return res.json(
+      subscription ? SubscriptionResponseMapper.toResponse(subscription) : null,
+    )
   }
 
   @Get('features')

@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Put } from '@nestjs/common'
+import { Body, Controller, Get, Param, Put, Res } from '@nestjs/common'
+import type { Response } from 'express'
 import { GetPetMedicalUseCase } from '../../application/use-cases/get-pet-medical.use-case'
 import { UpsertPetMedicalUseCase } from '../../application/use-cases/upsert-pet-medical.use-case'
 import { PetMedicalResponseMapper } from '../../application/mappers/pet-medical-response.mapper'
@@ -23,9 +24,15 @@ export class PetMedicalController {
   ) {}
 
   @Get(':petId/medical')
-  async get(@CurrentUser() user: RequestUser, @Param('petId') petId: string) {
+  async get(
+    @CurrentUser() user: RequestUser,
+    @Param('petId') petId: string,
+    @Res() res: Response,
+  ) {
     const medical = await this.getMedical.execute(user.sub, petId)
-    return medical ? PetMedicalResponseMapper.toResponse(medical) : null
+    return res.json(
+      medical ? PetMedicalResponseMapper.toResponse(medical) : null,
+    )
   }
 
   @Put(':petId/medical')

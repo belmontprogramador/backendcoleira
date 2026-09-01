@@ -8,6 +8,8 @@ export interface ContactMessageEmailData {
   senderPhone: string | null
   senderEmail: string | null
   message: string
+  /** Localização aproximada de quem enviou (IP→geo, pode ser null). */
+  location: string | null
 }
 
 export interface EmailSenderPort {

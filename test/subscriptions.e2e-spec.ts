@@ -65,7 +65,12 @@ describe('Planos, Assinaturas e Dados Premium (e2e)', () => {
   })
 
   async function seedPlans(): Promise<{ premium: string; basic: string }> {
-    const featureCodes = ['PET_MEDICAL', 'MULTIPLE_CONTACTS', 'ACCESS_HISTORY']
+    const featureCodes = [
+      'PET_MEDICAL',
+      'MULTIPLE_CONTACTS',
+      'ACCESS_HISTORY',
+      'CONTACT_MESSAGES',
+    ]
     for (const code of featureCodes) {
       await prisma.feature.upsert({
         where: { code },
@@ -239,7 +244,12 @@ describe('Planos, Assinaturas e Dados Premium (e2e)', () => {
 
     expect(premium?.priceCents).toBe(1990)
     expect(premium?.features.map(f => f.code).sort()).toEqual(
-      ['ACCESS_HISTORY', 'MULTIPLE_CONTACTS', 'PET_MEDICAL'].sort(),
+      [
+        'ACCESS_HISTORY',
+        'CONTACT_MESSAGES',
+        'MULTIPLE_CONTACTS',
+        'PET_MEDICAL',
+      ].sort(),
     )
   })
 
@@ -261,7 +271,12 @@ describe('Planos, Assinaturas e Dados Premium (e2e)', () => {
     const body = res.body as { code: string | null; features: string[] }
     expect(body.code).toBe('PREMIUM')
     expect(body.features.sort()).toEqual(
-      ['ACCESS_HISTORY', 'MULTIPLE_CONTACTS', 'PET_MEDICAL'].sort(),
+      [
+        'ACCESS_HISTORY',
+        'CONTACT_MESSAGES',
+        'MULTIPLE_CONTACTS',
+        'PET_MEDICAL',
+      ].sort(),
     )
   })
 

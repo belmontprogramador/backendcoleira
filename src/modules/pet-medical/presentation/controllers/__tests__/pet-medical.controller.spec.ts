@@ -34,23 +34,27 @@ describe('PetMedicalController', () => {
 
   it('get: retorna null quando não há registro', async () => {
     getMedical.execute.mockResolvedValue(null)
+    const res = { json: jest.fn().mockReturnValue(undefined) }
 
-    const result = await controller.get(user, 'pet-1')
+    await controller.get(user, 'pet-1', res as never)
 
-    expect(result).toBeNull()
+    expect(res.json).toHaveBeenCalledWith(null)
     expect(getMedical.execute).toHaveBeenCalledWith('user-1', 'pet-1')
   })
 
   it('get: mapeia para camelCase', async () => {
     getMedical.execute.mockResolvedValue(makeMedical())
+    const res = { json: jest.fn().mockReturnValue(undefined) }
 
-    const result = await controller.get(user, 'pet-1')
+    await controller.get(user, 'pet-1', res as never)
 
-    expect(result).toMatchObject({
-      petId: 'pet-1',
-      allergies: 'pólen',
-      veterinarianName: 'Dr. Ana',
-    })
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        petId: 'pet-1',
+        allergies: 'pólen',
+        veterinarianName: 'Dr. Ana',
+      }),
+    )
   })
 
   it('put: delega ao upsert com os dados', async () => {
