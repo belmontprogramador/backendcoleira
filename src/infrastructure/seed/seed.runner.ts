@@ -406,6 +406,7 @@ export class SeedRunner {
       create: {
         pet_id: pet.id,
         show_phone: true,
+        show_email: true,
         show_city: true,
       },
       update: {},

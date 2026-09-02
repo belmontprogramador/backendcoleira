@@ -215,8 +215,8 @@ describe('GetPublicProfileUseCase', () => {
     expect(result.profile.pet?.species).toBe('Cão')
     expect(result.profile.owner?.name).toBe('João Silva')
     expect(result.profile.owner?.phone).toBe('(21) 99999-9999')
-    // show_email default = false → email oculto
-    expect(result.profile.owner?.email).toBeNull()
+    // show_email default = true → email exposto (contato direto no Basic)
+    expect(result.profile.owner?.email).toBe('joao@example.com')
     expect(result.contactEnabled).toBe(false)
     expect(tags.findByPublicId).toHaveBeenCalledWith('7F4K9M2Q')
     expect(pets.findById).toHaveBeenCalledWith('pet-1')

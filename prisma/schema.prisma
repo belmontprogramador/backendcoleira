@@ -168,7 +168,7 @@ model PetPrivacy {
   id                 String   @id @default(cuid())
   pet_id             String   @unique
   show_phone         Boolean  @default(true)
-  show_email         Boolean  @default(false)
+  show_email         Boolean  @default(true)
   show_city          Boolean  @default(true)
   show_medical       Boolean  @default(false)
   show_veterinarian  Boolean  @default(false)

@@ -54,7 +54,7 @@ describe('PublicProfileResponseMapper', () => {
       owner: {
         name: 'João Silva',
         phone: '(21) 99999-9999',
-        email: null,
+        email: 'joao@example.com',
       },
       message: null,
       contact_enabled: true,

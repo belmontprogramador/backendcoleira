@@ -154,7 +154,7 @@ describe('Perfil público (e2e)', () => {
       owner: {
         name: 'Dono dono1@email.com',
         phone: '+5521999999999',
-        email: null,
+        email: 'dono1@email.com',
       },
       message: null,
       contact_enabled: false,

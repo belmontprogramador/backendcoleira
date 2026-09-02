@@ -12,7 +12,9 @@ export interface PetPrivacyProps {
  * Value object das configurações de privacidade de um pet (doc-sistema §4).
  * Imutável: `with(...)` retorna uma nova instância com as flags alteradas.
  *
- * Defaults (doc-sistema): telefone e cidade públicos; o resto privado.
+ * Defaults (doc-sistema): telefone, e-mail e cidade públicos; o resto privado.
+ * (e-mail público por default porque, no plano Basic, o contato direto é o
+ * único canal para quem encontrar o pet falar com o tutor).
  */
 export class PetPrivacy {
   private constructor(private readonly props: PetPrivacyProps) {}
@@ -20,7 +22,7 @@ export class PetPrivacy {
   static create(): PetPrivacy {
     return new PetPrivacy({
       showPhone: true,
-      showEmail: false,
+      showEmail: true,
       showCity: true,
       showMedical: false,
       showVeterinarian: false,

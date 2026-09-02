@@ -4,7 +4,7 @@ describe('PetPrivacy', () => {
   it('cria com os defaults do doc-sistema', () => {
     const p = PetPrivacy.create()
     expect(p.showPhone).toBe(true)
-    expect(p.showEmail).toBe(false)
+    expect(p.showEmail).toBe(true)
     expect(p.showCity).toBe(true)
     expect(p.showMedical).toBe(false)
     expect(p.showVeterinarian).toBe(false)
@@ -14,14 +14,16 @@ describe('PetPrivacy', () => {
 
   it('atualiza flags individualmente (imutável)', () => {
     const p = PetPrivacy.create()
-    const updated = p.with({ showEmail: true, showMedical: true })
+    const updated = p.with({ showMedical: true, showBehavior: true })
 
-    expect(updated.showEmail).toBe(true)
     expect(updated.showMedical).toBe(true)
+    expect(updated.showBehavior).toBe(true)
     // original não muda
-    expect(p.showEmail).toBe(false)
+    expect(p.showMedical).toBe(false)
+    expect(p.showBehavior).toBe(false)
     // demais flags preservadas
     expect(updated.showPhone).toBe(true)
+    expect(updated.showEmail).toBe(true)
     expect(updated.showCity).toBe(true)
   })
 

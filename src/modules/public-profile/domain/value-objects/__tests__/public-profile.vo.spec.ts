@@ -55,11 +55,11 @@ describe('PublicProfile (value object)', () => {
       expect(profile.owner?.name).toBe('João Silva')
     })
 
-    it('expõe telefone por padrão (show_phone = true) e oculta email (show_email = false)', () => {
+    it('expõe telefone e email por padrão (show_phone = true, show_email = true)', () => {
       const profile = PublicProfile.active(makePet(), makeOwner())
 
       expect(profile.owner?.phone).toBe('(21) 99999-9999')
-      expect(profile.owner?.email).toBeNull()
+      expect(profile.owner?.email).toBe('joao@example.com')
     })
 
     it('oculta o telefone quando show_phone = false', () => {
@@ -72,13 +72,13 @@ describe('PublicProfile (value object)', () => {
       expect(profile.owner?.name).toBe('João Silva')
     })
 
-    it('expõe o email quando show_email = true', () => {
+    it('oculta o email quando show_email = false', () => {
       const pet = makePet()
-      pet.updatePrivacy({ showEmail: true })
+      pet.updatePrivacy({ showEmail: false })
 
       const profile = PublicProfile.active(pet, makeOwner())
 
-      expect(profile.owner?.email).toBe('joao@example.com')
+      expect(profile.owner?.email).toBeNull()
     })
 
     it('oculta a cidade quando show_city = false', () => {
@@ -152,7 +152,7 @@ describe('PublicProfile (value object)', () => {
       expect(restored.pet?.city).toBe('Araruama - RJ')
       expect(restored.owner?.name).toBe('João Silva')
       expect(restored.owner?.phone).toBe('(21) 99999-9999')
-      expect(restored.owner?.email).toBeNull()
+      expect(restored.owner?.email).toBe('joao@example.com')
     })
 
     it('faz round-trip de um perfil não ativado', () => {
