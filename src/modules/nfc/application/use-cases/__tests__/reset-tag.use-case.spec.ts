@@ -5,6 +5,7 @@ import { Batch } from '../../../domain/entities/batch.entity'
 import type { NfcTagRepositoryPort } from '../../../domain/repositories/nfc-tag.repository.port'
 import type { BatchRepositoryPort } from '../../../domain/repositories/batch.repository.port'
 import type { AuditLoggerPort } from '../../../../../common/ports/audit-logger.port'
+import type { CachePort } from '../../../../../common/ports/cache.port'
 import { PublicId } from '../../../domain/value-objects/public-id.vo'
 import { Uid } from '../../../domain/value-objects/uid.vo'
 
@@ -12,6 +13,7 @@ describe('ResetTagUseCase', () => {
   let tags: jest.Mocked<NfcTagRepositoryPort>
   let batches: jest.Mocked<BatchRepositoryPort>
   let audit: jest.Mocked<AuditLoggerPort>
+  let cache: jest.Mocked<CachePort>
   let useCase: ResetTagUseCase
 
   beforeEach(() => {
@@ -37,7 +39,14 @@ describe('ResetTagUseCase', () => {
       delete: jest.fn(),
     }
     audit = { log: jest.fn() }
-    useCase = new ResetTagUseCase(tags, batches, audit)
+    cache = {
+      get: jest.fn(),
+      set: jest.fn(),
+      del: jest.fn(),
+      ping: jest.fn(),
+      quit: jest.fn(),
+    }
+    useCase = new ResetTagUseCase(tags, batches, audit, cache)
   })
 
   function readyTag(): NfcTag {
@@ -98,6 +107,15 @@ describe('ResetTagUseCase', () => {
     expect(result.ownerId).toBeNull()
     expect(result.petId).toBeNull()
     expect(result.activatedAt).toBeNull()
+  })
+
+  it('invalida o cache do perfil público ao resetar', async () => {
+    const tag = activeTag()
+    tags.findByPublicId.mockResolvedValue(tag)
+
+    await useCase.execute('operator-1', '7F4K9M2Q')
+
+    expect(cache.del).toHaveBeenCalledWith('profile:7F4K9M2Q')
   })
 
   it('decrementa written_count quando reseta uma tag READY', async () => {

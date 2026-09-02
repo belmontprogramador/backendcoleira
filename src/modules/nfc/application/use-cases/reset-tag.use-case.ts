@@ -5,6 +5,9 @@ import { BATCH_REPOSITORY_PORT } from '../../domain/repositories/batch.repositor
 import type { BatchRepositoryPort } from '../../domain/repositories/batch.repository.port'
 import { AUDIT_LOGGER_PORT } from '../../../../common/ports/audit-logger.port'
 import type { AuditLoggerPort } from '../../../../common/ports/audit-logger.port'
+import { CACHE_PORT } from '../../../../common/ports/cache.port'
+import type { CachePort } from '../../../../common/ports/cache.port'
+import { profileCacheKey } from '../../../../common/constants/profile-cache'
 import type { NfcTag } from '../../domain/entities/nfc-tag.entity'
 import { TagStatus } from '../../domain/entities/nfc-tag.entity'
 import { TagNotFoundError } from '../errors'
@@ -25,6 +28,7 @@ export class ResetTagUseCase {
     @Inject(BATCH_REPOSITORY_PORT)
     private readonly batches: BatchRepositoryPort,
     @Inject(AUDIT_LOGGER_PORT) private readonly audit: AuditLoggerPort,
+    @Inject(CACHE_PORT) private readonly cache: CachePort,
   ) {}
 
   async execute(operatorId: string, publicId: string): Promise<NfcTag> {
@@ -38,6 +42,9 @@ export class ResetTagUseCase {
 
     tag.reset()
     await this.tags.save(tag)
+    // Invalida o cache do perfil público — sem isso, a próxima leitura do QR
+    // ainda devolve o pet antigo (cache de 5 min) mesmo com pet_id já limpo.
+    await this.cache.del(profileCacheKey(tag.publicId.value))
 
     if (wasWritten && tag.batchId) {
       const batch = await this.batches.findById(tag.batchId)

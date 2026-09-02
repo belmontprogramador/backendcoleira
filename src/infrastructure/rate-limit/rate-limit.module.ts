@@ -14,12 +14,17 @@ import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis'
  * Os throttlers de contato usam `skipIf` seletivo para ativar APENAS na rota
  * de contato (identificada por method `POST` + param `publicId` presente).
  */
-function isContactRoute(context: ExecutionContext): boolean {
+export function isContactRoute(context: ExecutionContext): boolean {
   const req = context.switchToHttp().getRequest<{
     method?: string
-    params?: Record<string, string>
+    originalUrl?: string
+    url?: string
   }>()
-  return req.method === 'POST' && typeof req.params?.publicId === 'string'
+  if (req.method !== 'POST') {
+    return false
+  }
+  const path = (req.originalUrl ?? req.url ?? '').split('?')[0]
+  return /\/p\/[^/]+\/contact$/.test(path)
 }
 
 interface ContactIpRequest {
