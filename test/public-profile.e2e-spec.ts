@@ -200,6 +200,7 @@ describe('Perfil público (e2e)', () => {
       contact_enabled: false,
       medical: null,
       contacts: [],
+      location_approx: null,
     })
     expect(res.body).not.toHaveProperty('kind')
     expect(res.body).not.toHaveProperty('activation_code_encrypted')
@@ -353,6 +354,7 @@ describe('Perfil público (e2e)', () => {
       contact_enabled: false,
       medical: null,
       contacts: [],
+      location_approx: null,
     })
   })
 

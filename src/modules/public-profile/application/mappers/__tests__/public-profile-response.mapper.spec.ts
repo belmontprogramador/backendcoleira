@@ -39,6 +39,7 @@ describe('PublicProfileResponseMapper', () => {
       contactEnabled: false,
       medical: null,
       contacts: [],
+      locationApprox: null,
       ...overrides,
     }
   }
@@ -75,6 +76,7 @@ describe('PublicProfileResponseMapper', () => {
       contact_enabled: true,
       medical: null,
       contacts: [],
+      location_approx: null,
     })
   })
 
@@ -131,6 +133,7 @@ describe('PublicProfileResponseMapper', () => {
       contact_enabled: false,
       medical: null,
       contacts: [],
+      location_approx: null,
     })
   })
 
@@ -140,5 +143,13 @@ describe('PublicProfileResponseMapper', () => {
     )
 
     expect(response).not.toHaveProperty('kind')
+  })
+
+  it('mapeia locationApprox → location_approx (snake_case)', () => {
+    const response = PublicProfileResponseMapper.toResponse(
+      makeResult({ locationApprox: 'Rio de Janeiro, RJ, Brazil' }),
+    )
+
+    expect(response.location_approx).toBe('Rio de Janeiro, RJ, Brazil')
   })
 })

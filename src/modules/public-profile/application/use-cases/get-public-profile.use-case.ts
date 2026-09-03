@@ -74,6 +74,9 @@ export interface PublicProfileResult {
   medical: PublicMedicalInfo | null
   /** Contatos de emergência ([] = não exposto: sem feature, sem privacidade ou sem dados). */
   contacts: PublicContactInfo[]
+  /** Localização aproximada do visitante (IP→geo, best-effort). NÃO cacheada —
+   *  é por request, usada no link do WhatsApp da página pública. */
+  locationApprox: string | null
 }
 
 /** Janela mínima entre alertas de acesso por pet (anti-spam, doc-sistema §11). */
@@ -135,7 +138,11 @@ export class GetPublicProfileUseCase {
       throw new TagNotFoundError(publicId)
     }
 
-    await this.trackAccess(tag, input)
+    // Localização do visitante resolvida a cada request (não cacheada) — usada
+    // tanto no side-effect de acesso quanto no link do WhatsApp da página.
+    const locationApprox = await this.resolveLocation(input.ip)
+
+    await this.trackAccess(tag, input, locationApprox)
 
     const cached = await this.cache.get(key)
     const profile = cached
@@ -156,15 +163,24 @@ export class GetPublicProfileUseCase {
     // cacheados, para refletir mudanças de plano/privacidade imediatamente.
     const { medical, contacts } = await this.resolvePremiumExtras(tag, profile)
 
-    return { profile, contactEnabled, medical, contacts }
+    return { profile, contactEnabled, medical, contacts, locationApprox }
+  }
+
+  /** Resolve o IP→geo sem nunca lançar (best-effort, RNF10). */
+  private async resolveLocation(ip?: string | null): Promise<string | null> {
+    try {
+      return await this.geolocation.resolve(ip ?? null)
+    } catch {
+      return null
+    }
   }
 
   private async trackAccess(
     tag: NfcTag,
     input: GetPublicProfileInput,
+    locationApprox: string | null,
   ): Promise<void> {
     try {
-      const locationApprox = await this.geolocation.resolve(input.ip ?? null)
       await this.registerAccessEvent.execute({
         petId: tag.petId,
         nfcTagId: tag.id,

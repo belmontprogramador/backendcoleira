@@ -440,6 +440,36 @@ describe('GetPublicProfileUseCase', () => {
       expect(geolocation.resolve).toHaveBeenCalledWith('187.22.1.1')
     })
 
+    it('retorna a localização aproximada no resultado (não cacheada)', async () => {
+      const tag = makeTag('pet-1')
+      const pet = makePet()
+      const owner = makeOwner()
+      tags.findByPublicId.mockResolvedValue(tag)
+      pets.findById.mockResolvedValue(pet)
+      users.findById.mockResolvedValue(owner)
+
+      const result = await useCase.execute({
+        publicId: '7F4K9M2Q',
+        ip: '187.22.1.1',
+      })
+
+      expect(result.locationApprox).toBe('São Paulo, SP, Brazil')
+    })
+
+    it('retorna locationApprox null quando o IP é privado', async () => {
+      const tag = makeTag('pet-1')
+      const pet = makePet()
+      const owner = makeOwner()
+      tags.findByPublicId.mockResolvedValue(tag)
+      pets.findById.mockResolvedValue(pet)
+      users.findById.mockResolvedValue(owner)
+      geolocation.resolve.mockResolvedValue(null)
+
+      const result = await useCase.execute({ publicId: '7F4K9M2Q' })
+
+      expect(result.locationApprox).toBeNull()
+    })
+
     it('não derruba o perfil quando o registro de acesso falha (RNF10)', async () => {
       const tag = makeTag('pet-1')
       const pet = makePet()

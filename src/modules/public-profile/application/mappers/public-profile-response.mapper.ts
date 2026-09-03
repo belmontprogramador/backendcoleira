@@ -37,6 +37,7 @@ export interface PublicProfileResponse {
   contact_enabled: boolean
   medical: PublicMedicalResponse | null
   contacts: PublicContactResponse[]
+  location_approx: string | null
 }
 
 /**
@@ -48,7 +49,7 @@ export interface PublicProfileResponse {
  */
 export class PublicProfileResponseMapper {
   static toResponse(result: PublicProfileResult): PublicProfileResponse {
-    const { profile, contactEnabled, medical, contacts } = result
+    const { profile, contactEnabled, medical, contacts, locationApprox } = result
     return {
       status: profile.status,
       pet: profile.pet
@@ -88,6 +89,7 @@ export class PublicProfileResponseMapper {
         email: c.email,
         relationship: c.relationship,
       })),
+      location_approx: locationApprox,
     }
   }
 }
