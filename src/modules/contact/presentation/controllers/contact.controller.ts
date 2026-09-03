@@ -41,8 +41,10 @@ export class ContactController {
     publicId: string,
     @Body(new ZodValidationPipe(contactSchema)) body: ContactDto,
     @Ip() ip?: string,
+    @Headers('x-forwarded-for') forwardedFor?: string,
     @Headers('user-agent') userAgent?: string,
   ): Promise<{ messageId: string }> {
+    const clientIp = forwardedFor?.split(',')[0]?.trim() || ip
     return this.sendContactMessage.execute({
       publicId,
       senderName: body.sender_name ?? null,
@@ -50,8 +52,8 @@ export class ContactController {
       senderEmail: body.sender_email ?? null,
       message: body.message,
       source: parseAccessSource(body.source),
-      ip: ip ?? null,
-      ipHash: this.ipHasher.hash(ip),
+      ip: clientIp ?? null,
+      ipHash: this.ipHasher.hash(clientIp),
       userAgent: userAgent ?? null,
     })
   }

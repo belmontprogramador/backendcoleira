@@ -5,7 +5,9 @@ import type { Transporter } from 'nodemailer'
 import type {
   ContactMessageEmailData,
   EmailSenderPort,
+  ScanAlertEmailData,
 } from '../../common/ports/email-sender.port'
+import { AccessSource } from '../../common/constants/access-source'
 
 /**
  * Implementação de e-mail via SMTP (nodemailer) — produção.
@@ -154,6 +156,29 @@ export class SmtpEmailSender implements EmailSenderPort {
       `<p><strong>E-mail:</strong> ${data.senderEmail ?? '—'}</p>` +
       `<p><strong>Localização aproximada:</strong> ${data.location ?? '—'}</p>` +
       `<p>${data.message}</p>`
+    await this.send(to, subject, html, text)
+  }
+
+  async sendScanAlertEmail(
+    to: string,
+    data: ScanAlertEmailData,
+  ): Promise<void> {
+    const sourceLabel: Record<AccessSource, string> = {
+      [AccessSource.NFC]: 'NFC',
+      [AccessSource.QR]: 'QR Code',
+      [AccessSource.DIRECT]: 'acesso direto',
+    }
+    const subject = `Alguém acessou o perfil de ${data.petName} — Elopet`
+    const text =
+      `Alguém acessou o perfil do seu pet ${data.petName}.\n\n` +
+      `Via: ${sourceLabel[data.source]}\n` +
+      `Localização aproximada: ${data.location ?? '—'}\n\n` +
+      'Se o seu pet está perdido, essa informação pode ajudar na busca.'
+    const html =
+      `<h1>Alguém acessou o perfil de ${data.petName}</h1>` +
+      `<p><strong>Via:</strong> ${sourceLabel[data.source]}</p>` +
+      `<p><strong>Localização aproximada:</strong> ${data.location ?? '—'}</p>` +
+      '<p>Se o seu pet está perdido, essa informação pode ajudar na busca.</p>'
     await this.send(to, subject, html, text)
   }
 }

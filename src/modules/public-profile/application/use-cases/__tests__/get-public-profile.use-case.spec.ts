@@ -8,6 +8,7 @@ import {
   CONTACT_MESSAGES_FEATURE,
   PET_MEDICAL_FEATURE,
   MULTIPLE_CONTACTS_FEATURE,
+  ACCESS_HISTORY_FEATURE,
 } from '../../../../../common/constants/features'
 import type { NfcTagRepositoryPort } from '../../../../nfc/domain/repositories/nfc-tag.repository.port'
 import type { PetRepositoryPort } from '../../../../pets/domain/repositories/pet.repository.port'
@@ -17,6 +18,7 @@ import type { PetContactRepositoryPort } from '../../../../pet-contacts/domain/r
 import type { CachePort } from '../../../../../common/ports/cache.port'
 import type { FeatureAccessPort } from '../../../../../common/ports/feature-access.port'
 import type { IpGeolocationPort } from '../../../../../common/ports/ip-geolocation.port'
+import type { EmailSenderPort } from '../../../../../common/ports/email-sender.port'
 import type { RegisterAccessEventUseCase } from '../../../../access-events/application/use-cases/register-access-event.use-case'
 import {
   profileCacheKey,
@@ -44,6 +46,7 @@ describe('GetPublicProfileUseCase', () => {
   let cache: jest.Mocked<CachePort>
   let featureAccess: jest.Mocked<FeatureAccessPort>
   let geolocation: jest.Mocked<IpGeolocationPort>
+  let email: jest.Mocked<EmailSenderPort>
   let registerAccessEvent: jest.Mocked<RegisterAccessEventUseCase>
   let useCase: GetPublicProfileUseCase
 
@@ -94,6 +97,14 @@ describe('GetPublicProfileUseCase', () => {
     }
     featureAccess = { hasFeature: jest.fn(), listFeatures: jest.fn() }
     geolocation = { resolve: jest.fn() }
+    email = {
+      sendVerificationEmail: jest.fn(),
+      sendPasswordResetEmail: jest.fn(),
+      sendAdminPasswordResetEmail: jest.fn(),
+      sendTransferEmail: jest.fn(),
+      sendContactMessageEmail: jest.fn(),
+      sendScanAlertEmail: jest.fn(),
+    }
     registerAccessEvent = {
       execute: jest.fn(),
     } as jest.Mocked<RegisterAccessEventUseCase>
@@ -109,6 +120,7 @@ describe('GetPublicProfileUseCase', () => {
       cache,
       featureAccess,
       geolocation,
+      email,
       registerAccessEvent,
     )
   })
@@ -436,6 +448,106 @@ describe('GetPublicProfileUseCase', () => {
       pets.findById.mockResolvedValue(pet)
       users.findById.mockResolvedValue(owner)
       registerAccessEvent.execute.mockRejectedValue(new Error('db down'))
+
+      const result = await useCase.execute({ publicId: '7F4K9M2Q' })
+
+      expect(result.profile.isActive).toBe(true)
+      expect(result.profile.pet?.name).toBe('Thor')
+    })
+  })
+
+  describe('alerta de pet perdido (doc-sistema §11)', () => {
+    it('envia e-mail ao tutor quando um pet perdido é acessado (premium)', async () => {
+      const tag = makeTag('pet-1')
+      const pet = makePet()
+      pet.markLost()
+      const owner = makeOwner()
+      tags.findByPublicId.mockResolvedValue(tag)
+      pets.findById.mockResolvedValue(pet)
+      users.findById.mockResolvedValue(owner)
+      featureAccess.hasFeature.mockImplementation(
+        async (_userId, code) => code === ACCESS_HISTORY_FEATURE,
+      )
+
+      await useCase.execute({
+        publicId: '7F4K9M2Q',
+        source: AccessSource.QR,
+        ip: '187.22.1.1',
+      })
+
+      expect(email.sendScanAlertEmail).toHaveBeenCalledWith(
+        'joao@example.com',
+        {
+          petName: 'Thor',
+          source: AccessSource.QR,
+          location: 'São Paulo, SP, Brazil',
+        },
+      )
+      expect(cache.set).toHaveBeenCalledWith('scan-alert:pet-1', '1', 600)
+    })
+
+    it('não envia e-mail quando o pet não está perdido', async () => {
+      const tag = makeTag('pet-1')
+      const pet = makePet() // lostStatus = false
+      const owner = makeOwner()
+      tags.findByPublicId.mockResolvedValue(tag)
+      pets.findById.mockResolvedValue(pet)
+      users.findById.mockResolvedValue(owner)
+      featureAccess.hasFeature.mockResolvedValue(true)
+
+      await useCase.execute({ publicId: '7F4K9M2Q' })
+
+      expect(email.sendScanAlertEmail).not.toHaveBeenCalled()
+    })
+
+    it('não envia e-mail quando o dono não tem ACCESS_HISTORY (não premium)', async () => {
+      const tag = makeTag('pet-1')
+      const pet = makePet()
+      pet.markLost()
+      const owner = makeOwner()
+      tags.findByPublicId.mockResolvedValue(tag)
+      pets.findById.mockResolvedValue(pet)
+      users.findById.mockResolvedValue(owner)
+      featureAccess.hasFeature.mockResolvedValue(false)
+
+      await useCase.execute({ publicId: '7F4K9M2Q' })
+
+      expect(email.sendScanAlertEmail).not.toHaveBeenCalled()
+      expect(cache.set).not.toHaveBeenCalledWith(
+        'scan-alert:pet-1',
+        expect.any(String),
+        expect.any(Number),
+      )
+    })
+
+    it('não repete o e-mail dentro da janela de throttle', async () => {
+      const tag = makeTag('pet-1')
+      const pet = makePet()
+      pet.markLost()
+      const owner = makeOwner()
+      tags.findByPublicId.mockResolvedValue(tag)
+      pets.findById.mockResolvedValue(pet)
+      users.findById.mockResolvedValue(owner)
+      featureAccess.hasFeature.mockResolvedValue(true)
+      cache.get.mockImplementation(async (key) =>
+        key.startsWith('scan-alert:') ? '1' : null,
+      )
+
+      await useCase.execute({ publicId: '7F4K9M2Q' })
+
+      expect(email.sendScanAlertEmail).not.toHaveBeenCalled()
+    })
+
+    it('não derruba o perfil quando o envio do alerta falha', async () => {
+      const tag = makeTag('pet-1')
+      const pet = makePet()
+      pet.markLost()
+      const owner = makeOwner()
+      tags.findByPublicId.mockResolvedValue(tag)
+      pets.findById.mockResolvedValue(pet)
+      users.findById.mockResolvedValue(owner)
+      featureAccess.hasFeature.mockResolvedValue(true)
+      email.sendScanAlertEmail.mockRejectedValue(new Error('smtp down'))
 
       const result = await useCase.execute({ publicId: '7F4K9M2Q' })
 

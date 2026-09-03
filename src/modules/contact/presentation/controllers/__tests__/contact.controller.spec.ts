@@ -35,6 +35,7 @@ describe('ContactController', () => {
       '7F4K9M2Q',
       body,
       '192.168.0.1',
+      undefined,
       'iPhone',
     )
 
@@ -50,6 +51,25 @@ describe('ContactController', () => {
       ipHash: 'hashed-192.168.0.1',
       userAgent: 'iPhone',
     })
+  })
+
+  it('usa o primeiro IP do X-Forwarded-For (IP real do visitante)', async () => {
+    const body: ContactDto = { message: 'Oi', source: 'nfc' }
+
+    await controller.send(
+      '7F4K9M2Q',
+      body,
+      '10.0.0.1',
+      '187.22.1.1, 10.0.0.2',
+      undefined,
+    )
+
+    expect(sendContactMessage.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ip: '187.22.1.1',
+        ipHash: 'hashed-192.168.0.1',
+      }),
+    )
   })
 
   it('normaliza IP ausente → ipHash null e userAgent ausente → null', async () => {

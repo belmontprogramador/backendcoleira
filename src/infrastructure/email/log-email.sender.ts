@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config'
 import type {
   ContactMessageEmailData,
   EmailSenderPort,
+  ScanAlertEmailData,
 } from '../../common/ports/email-sender.port'
 
 /**
@@ -57,6 +58,13 @@ export class LogEmailSender implements EmailSenderPort {
   ): Promise<void> {
     this.logger.log(
       `[contato] para=${to} pet=${data.petName} de=${data.senderName ?? 'anônimo'} localização=${data.location ?? '—'}`,
+    )
+    return Promise.resolve()
+  }
+
+  sendScanAlertEmail(to: string, data: ScanAlertEmailData): Promise<void> {
+    this.logger.log(
+      `[alerta de acesso] para=${to} pet=${data.petName} via=${data.source} localização=${data.location ?? '—'}`,
     )
     return Promise.resolve()
   }

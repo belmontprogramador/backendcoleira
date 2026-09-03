@@ -37,13 +37,18 @@ export class PublicProfileController {
     publicId: string,
     @Query('source') source?: string,
     @Ip() ip?: string,
+    @Headers('x-forwarded-for') forwardedFor?: string,
     @Headers('user-agent') userAgent?: string,
   ): Promise<ReturnType<typeof PublicProfileResponseMapper.toResponse>> {
+    // O BFF (frontclient) proxeia o request e repassa o IP real do visitante
+    // via X-Forwarded-For; sem isso o backend veria o IP do proxy (privado)
+    // e a geolocalização falharia.
+    const clientIp = forwardedFor?.split(',')[0]?.trim() || ip
     const result = await this.getPublicProfile.execute({
       publicId,
       source: parseAccessSource(source),
-      ip: ip ?? null,
-      ipHash: this.ipHasher.hash(ip),
+      ip: clientIp ?? null,
+      ipHash: this.ipHasher.hash(clientIp),
       deviceType: userAgent ?? null,
     })
     return PublicProfileResponseMapper.toResponse(result)
