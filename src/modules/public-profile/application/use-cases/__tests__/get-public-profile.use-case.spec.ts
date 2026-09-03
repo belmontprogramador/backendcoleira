@@ -4,10 +4,16 @@ import { TagNotFoundError } from '../../../../nfc/application/errors'
 import { PetNotFoundError } from '../../../../pets/application/errors'
 import { UserNotFoundError } from '../../../../users/application/errors'
 import { AccessSource } from '../../../../../common/constants/access-source'
-import { CONTACT_MESSAGES_FEATURE } from '../../../../../common/constants/features'
+import {
+  CONTACT_MESSAGES_FEATURE,
+  PET_MEDICAL_FEATURE,
+  MULTIPLE_CONTACTS_FEATURE,
+} from '../../../../../common/constants/features'
 import type { NfcTagRepositoryPort } from '../../../../nfc/domain/repositories/nfc-tag.repository.port'
 import type { PetRepositoryPort } from '../../../../pets/domain/repositories/pet.repository.port'
 import type { UserRepositoryPort } from '../../../../users/domain/repositories/user.repository.port'
+import type { PetMedicalRepositoryPort } from '../../../../pet-medical/domain/repositories/pet-medical.repository.port'
+import type { PetContactRepositoryPort } from '../../../../pet-contacts/domain/repositories/pet-contact.repository.port'
 import type { CachePort } from '../../../../../common/ports/cache.port'
 import type { FeatureAccessPort } from '../../../../../common/ports/feature-access.port'
 import type { IpGeolocationPort } from '../../../../../common/ports/ip-geolocation.port'
@@ -26,11 +32,15 @@ import { Pet } from '../../../../pets/domain/entities/pet.entity'
 import { PetSpecies } from '../../../../pets/domain/value-objects/pet-species.vo'
 import { User } from '../../../../users/domain/entities/user.entity'
 import { Email } from '../../../../users/domain/value-objects/email.vo'
+import { PetMedical } from '../../../../pet-medical/domain/entities/pet-medical.entity'
+import { PetContact } from '../../../../pet-contacts/domain/entities/pet-contact.entity'
 
 describe('GetPublicProfileUseCase', () => {
   let tags: jest.Mocked<NfcTagRepositoryPort>
   let pets: jest.Mocked<PetRepositoryPort>
   let users: jest.Mocked<UserRepositoryPort>
+  let medical: jest.Mocked<PetMedicalRepositoryPort>
+  let contacts: jest.Mocked<PetContactRepositoryPort>
   let cache: jest.Mocked<CachePort>
   let featureAccess: jest.Mocked<FeatureAccessPort>
   let geolocation: jest.Mocked<IpGeolocationPort>
@@ -65,6 +75,16 @@ describe('GetPublicProfileUseCase', () => {
       list: jest.fn(),
       count: jest.fn(),
     }
+    medical = {
+      findByPetId: jest.fn(),
+      save: jest.fn(),
+    }
+    contacts = {
+      listByPet: jest.fn(),
+      findById: jest.fn(),
+      save: jest.fn(),
+      delete: jest.fn(),
+    }
     cache = {
       get: jest.fn(),
       set: jest.fn(),
@@ -84,6 +104,8 @@ describe('GetPublicProfileUseCase', () => {
       tags,
       pets,
       users,
+      medical,
+      contacts,
       cache,
       featureAccess,
       geolocation,
@@ -241,6 +263,143 @@ describe('GetPublicProfileUseCase', () => {
     )
   })
 
+  describe('extras premium (dados médicos + contatos)', () => {
+    function makeMedical(): PetMedical {
+      return PetMedical.reconstitute({
+        petId: 'pet-1',
+        allergies: 'Dipirona',
+        medications: 'Vermífugo mensal',
+        specialCare: 'Não dar chocolate',
+        medicalConditions: 'Nenhuma',
+        veterinarianName: 'Dra. Ana',
+        veterinarianPhone: '(21) 98888-7777',
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+      })
+    }
+
+    function makeContact(): PetContact {
+      return PetContact.reconstitute({
+        id: 'contact-1',
+        petId: 'pet-1',
+        name: 'Maria (mãe)',
+        phone: '(21) 97777-6666',
+        email: 'maria@example.com',
+        relationship: 'Família',
+        isPrimary: true,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+      })
+    }
+
+    it('expõe dados médicos quando o dono tem PET_MEDICAL + showMedical', async () => {
+      const tag = makeTag('pet-1')
+      const pet = makePet()
+      pet.updatePrivacy({ showMedical: true, showVeterinarian: true })
+      const owner = makeOwner()
+      tags.findByPublicId.mockResolvedValue(tag)
+      pets.findById.mockResolvedValue(pet)
+      users.findById.mockResolvedValue(owner)
+      featureAccess.hasFeature.mockImplementation(async (_userId, code) =>
+        code === PET_MEDICAL_FEATURE,
+      )
+      medical.findByPetId.mockResolvedValue(makeMedical())
+
+      const result = await useCase.execute({ publicId: '7F4K9M2Q' })
+
+      expect(result.medical).toEqual({
+        allergies: 'Dipirona',
+        medications: 'Vermífugo mensal',
+        specialCare: 'Não dar chocolate',
+        medicalConditions: 'Nenhuma',
+        veterinarianName: 'Dra. Ana',
+        veterinarianPhone: '(21) 98888-7777',
+      })
+      expect(result.contacts).toEqual([])
+    })
+
+    it('não expõe dados médicos sem a feature PET_MEDICAL', async () => {
+      const tag = makeTag('pet-1')
+      const pet = makePet()
+      pet.updatePrivacy({ showMedical: true })
+      const owner = makeOwner()
+      tags.findByPublicId.mockResolvedValue(tag)
+      pets.findById.mockResolvedValue(pet)
+      users.findById.mockResolvedValue(owner)
+      featureAccess.hasFeature.mockResolvedValue(false)
+      medical.findByPetId.mockResolvedValue(makeMedical())
+
+      const result = await useCase.execute({ publicId: '7F4K9M2Q' })
+
+      expect(result.medical).toBeNull()
+      expect(medical.findByPetId).not.toHaveBeenCalled()
+    })
+
+    it('oculta veterinário quando showVeterinarian=false (só showMedical)', async () => {
+      const tag = makeTag('pet-1')
+      const pet = makePet()
+      pet.updatePrivacy({ showMedical: true, showVeterinarian: false })
+      const owner = makeOwner()
+      tags.findByPublicId.mockResolvedValue(tag)
+      pets.findById.mockResolvedValue(pet)
+      users.findById.mockResolvedValue(owner)
+      featureAccess.hasFeature.mockImplementation(async (_userId, code) =>
+        code === PET_MEDICAL_FEATURE,
+      )
+      medical.findByPetId.mockResolvedValue(makeMedical())
+
+      const result = await useCase.execute({ publicId: '7F4K9M2Q' })
+
+      expect(result.medical?.allergies).toBe('Dipirona')
+      expect(result.medical?.veterinarianName).toBeNull()
+      expect(result.medical?.veterinarianPhone).toBeNull()
+    })
+
+    it('expõe contatos quando MULTIPLE_CONTACTS + showContacts', async () => {
+      const tag = makeTag('pet-1')
+      const pet = makePet()
+      pet.updatePrivacy({ showContacts: true })
+      const owner = makeOwner()
+      tags.findByPublicId.mockResolvedValue(tag)
+      pets.findById.mockResolvedValue(pet)
+      users.findById.mockResolvedValue(owner)
+      featureAccess.hasFeature.mockImplementation(async (_userId, code) =>
+        code === MULTIPLE_CONTACTS_FEATURE,
+      )
+      contacts.listByPet.mockResolvedValue([makeContact()])
+
+      const result = await useCase.execute({ publicId: '7F4K9M2Q' })
+
+      expect(result.contacts).toEqual([
+        {
+          name: 'Maria (mãe)',
+          phone: '(21) 97777-6666',
+          email: 'maria@example.com',
+          relationship: 'Família',
+        },
+      ])
+      expect(result.medical).toBeNull()
+    })
+
+    it('não expõe contatos sem showContacts (mesmo com feature)', async () => {
+      const tag = makeTag('pet-1')
+      const pet = makePet() // showContacts=false por default
+      const owner = makeOwner()
+      tags.findByPublicId.mockResolvedValue(tag)
+      pets.findById.mockResolvedValue(pet)
+      users.findById.mockResolvedValue(owner)
+      featureAccess.hasFeature.mockImplementation(async (_userId, code) =>
+        code === MULTIPLE_CONTACTS_FEATURE,
+      )
+      contacts.listByPet.mockResolvedValue([makeContact()])
+
+      const result = await useCase.execute({ publicId: '7F4K9M2Q' })
+
+      expect(result.contacts).toEqual([])
+      expect(contacts.listByPet).not.toHaveBeenCalled()
+    })
+  })
+
   describe('side-effect de registro de acesso', () => {
     it('registra o acesso com source, ip, device e localização', async () => {
       const tag = makeTag('pet-1')
@@ -286,11 +445,12 @@ describe('GetPublicProfileUseCase', () => {
   })
 
   describe('cache', () => {
-    it('retorna do cache sem tocar em pets/users (mas registra acesso)', async () => {
+    it('retorna do cache sem tocar em users (mas revalida o pet p/ extras premium)', async () => {
       const tag = makeTag('pet-1')
       tags.findByPublicId.mockResolvedValue(tag)
       const profile = PublicProfile.active(makePet(), makeOwner())
       cache.get.mockResolvedValue(JSON.stringify(profile.toJSON()))
+      pets.findById.mockResolvedValue(null)
 
       const result = await useCase.execute({ publicId: '7F4K9M2Q' })
 
@@ -298,8 +458,10 @@ describe('GetPublicProfileUseCase', () => {
       expect(result.profile.pet?.name).toBe('Thor')
       expect(tags.findByPublicId).toHaveBeenCalled()
       expect(registerAccessEvent.execute).toHaveBeenCalled()
-      expect(pets.findById).not.toHaveBeenCalled()
+      // O perfil vem do cache (dono não é re-buscado), mas os extras premium
+      // revalidam o pet para aplicar privacidade ao vivo.
       expect(users.findById).not.toHaveBeenCalled()
+      expect(pets.findById).toHaveBeenCalledWith('pet-1')
     })
 
     it('popula o cache (TTL 300s) no miss', async () => {

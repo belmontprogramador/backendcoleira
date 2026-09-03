@@ -121,6 +121,46 @@ describe('Perfil público (e2e)', () => {
     return { tagId, petId }
   }
 
+  async function makePremiumFeatures(
+    userId: string,
+    codes: string[],
+  ): Promise<void> {
+    const featureIds: string[] = []
+    for (const code of codes) {
+      const f = await prisma.feature.create({
+        data: { code, name: code },
+      })
+      featureIds.push(f.id)
+    }
+    const plan = await prisma.plan.create({
+      data: {
+        code: 'PREMIUM',
+        name: 'Premium',
+        price_cents: 1990,
+        is_default: false,
+      },
+    })
+    for (const featureId of featureIds) {
+      await prisma.planFeature.create({
+        data: { plan_id: plan.id, feature_id: featureId },
+      })
+    }
+    const now = new Date()
+    await prisma.subscription.create({
+      data: {
+        user_id: userId,
+        plan_id: plan.id,
+        provider: 'MERCADO_PAGO',
+        status: 'ACTIVE',
+        started_at: now,
+        current_period_start: now,
+        current_period_end: new Date(
+          now.getTime() + 30 * 24 * 60 * 60 * 1000,
+        ),
+      },
+    })
+  }
+
   it('retorna perfil ativo em snake_case sem autenticação', async () => {
     const token = await createUser(
       'u1',
@@ -158,6 +198,8 @@ describe('Perfil público (e2e)', () => {
       },
       message: null,
       contact_enabled: false,
+      medical: null,
+      contacts: [],
     })
     expect(res.body).not.toHaveProperty('kind')
     expect(res.body).not.toHaveProperty('activation_code_encrypted')
@@ -183,6 +225,81 @@ describe('Perfil público (e2e)', () => {
     expect((res.body as { contact_enabled: boolean }).contact_enabled).toBe(
       true,
     )
+  })
+
+  it('expõe dados médicos e contatos (premium) no perfil público', async () => {
+    const token = await createUser(
+      'u1',
+      'dono1@email.com',
+      'senhaForte123',
+      '+5521999999999',
+    )
+    await makePremiumFeatures('u1', [
+      'CONTACT_MESSAGES',
+      'PET_MEDICAL',
+      'MULTIPLE_CONTACTS',
+    ])
+    const { petId } = await activateAndAssociate(
+      token,
+      '7F4K9M2Q',
+      'X8P4-L2Q9',
+      { name: 'Thor', species: 'Cão' },
+    )
+
+    await request(app.getHttpServer())
+      .patch(`/pets/${petId}/privacy`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ showMedical: true, showVeterinarian: true, showContacts: true })
+      .expect(200)
+
+    await prisma.petMedical.create({
+      data: {
+        pet_id: petId,
+        allergies: 'Dipirona',
+        medications: 'Vermífugo',
+        special_care: 'Não dar chocolate',
+        medical_conditions: 'Nenhuma',
+        veterinarian_name: 'Dra. Ana',
+        veterinarian_phone: '(21) 98888-7777',
+      },
+    })
+    await prisma.petContact.create({
+      data: {
+        pet_id: petId,
+        name: 'Maria (mãe)',
+        phone: '(21) 97777-6666',
+        email: 'maria@example.com',
+        relationship: 'Família',
+        is_primary: true,
+      },
+    })
+
+    const res = await request(app.getHttpServer())
+      .get('/p/7F4K9M2Q')
+      .expect(200)
+    const body = res.body as {
+      contact_enabled: boolean
+      medical: unknown
+      contacts: unknown[]
+    }
+
+    expect(body.contact_enabled).toBe(true)
+    expect(body.medical).toEqual({
+      allergies: 'Dipirona',
+      medications: 'Vermífugo',
+      special_care: 'Não dar chocolate',
+      medical_conditions: 'Nenhuma',
+      veterinarian_name: 'Dra. Ana',
+      veterinarian_phone: '(21) 98888-7777',
+    })
+    expect(body.contacts).toEqual([
+      {
+        name: 'Maria (mãe)',
+        phone: '(21) 97777-6666',
+        email: 'maria@example.com',
+        relationship: 'Família',
+      },
+    ])
   })
 
   it('invalida o cache quando a privacidade muda', async () => {
@@ -234,6 +351,8 @@ describe('Perfil público (e2e)', () => {
       owner: null,
       message: 'Este pingente ainda não foi ativado',
       contact_enabled: false,
+      medical: null,
+      contacts: [],
     })
   })
 

@@ -27,5 +27,6 @@ import { PetContactsController } from './presentation/controllers/pet-contacts.c
     UpdatePetContactUseCase,
     DeletePetContactUseCase,
   ],
+  exports: [PET_CONTACT_REPOSITORY_PORT],
 })
 export class PetContactsModule {}

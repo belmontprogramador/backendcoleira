@@ -46,9 +46,6 @@ export class PublicProfileController {
       ipHash: this.ipHasher.hash(ip),
       deviceType: userAgent ?? null,
     })
-    return PublicProfileResponseMapper.toResponse(
-      result.profile,
-      result.contactEnabled,
-    )
+    return PublicProfileResponseMapper.toResponse(result)
   }
 }

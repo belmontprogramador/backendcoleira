@@ -11,7 +11,18 @@ import { FEATURE_ACCESS_PORT } from '../../../../common/ports/feature-access.por
 import type { FeatureAccessPort } from '../../../../common/ports/feature-access.port'
 import { IP_GEOLOCATION_PORT } from '../../../../common/ports/ip-geolocation.port'
 import type { IpGeolocationPort } from '../../../../common/ports/ip-geolocation.port'
-import { CONTACT_MESSAGES_FEATURE } from '../../../../common/constants/features'
+import {
+  CONTACT_MESSAGES_FEATURE,
+  PET_MEDICAL_FEATURE,
+  MULTIPLE_CONTACTS_FEATURE,
+} from '../../../../common/constants/features'
+import { PET_MEDICAL_REPOSITORY_PORT } from '../../../pet-medical/domain/repositories/pet-medical.repository.port'
+import type { PetMedicalRepositoryPort } from '../../../pet-medical/domain/repositories/pet-medical.repository.port'
+import type { PetMedical } from '../../../pet-medical/domain/entities/pet-medical.entity'
+import { PET_CONTACT_REPOSITORY_PORT } from '../../../pet-contacts/domain/repositories/pet-contact.repository.port'
+import type { PetContactRepositoryPort } from '../../../pet-contacts/domain/repositories/pet-contact.repository.port'
+import type { PetContact } from '../../../pet-contacts/domain/entities/pet-contact.entity'
+import type { PetPrivacy } from '../../../pets/domain/value-objects/pet-privacy.vo'
 import { AccessSource } from '../../../../common/constants/access-source'
 import { RegisterAccessEventUseCase } from '../../../access-events/application/use-cases/register-access-event.use-case'
 import {
@@ -34,10 +45,32 @@ export interface GetPublicProfileInput {
   deviceType?: string | null
 }
 
+/** Dados médicos expostos publicamente (privacidade já aplicada). */
+export interface PublicMedicalInfo {
+  allergies: string | null
+  medications: string | null
+  specialCare: string | null
+  medicalConditions: string | null
+  veterinarianName: string | null
+  veterinarianPhone: string | null
+}
+
+/** Contato de emergência exposto publicamente. */
+export interface PublicContactInfo {
+  name: string
+  phone: string | null
+  email: string | null
+  relationship: string | null
+}
+
 export interface PublicProfileResult {
   profile: PublicProfile
   /** Dono é Premium com a feature `CONTACT_MESSAGES`? (gate do formulário). */
   contactEnabled: boolean
+  /** Dados médicos (null = não exposto: sem feature, sem privacidade ou sem dados). */
+  medical: PublicMedicalInfo | null
+  /** Contatos de emergência ([] = não exposto: sem feature, sem privacidade ou sem dados). */
+  contacts: PublicContactInfo[]
 }
 
 /**
@@ -71,6 +104,10 @@ export class GetPublicProfileUseCase {
     private readonly pets: PetRepositoryPort,
     @Inject(USER_REPOSITORY_PORT)
     private readonly users: UserRepositoryPort,
+    @Inject(PET_MEDICAL_REPOSITORY_PORT)
+    private readonly medical: PetMedicalRepositoryPort,
+    @Inject(PET_CONTACT_REPOSITORY_PORT)
+    private readonly contacts: PetContactRepositoryPort,
     @Inject(CACHE_PORT) private readonly cache: CachePort,
     @Inject(FEATURE_ACCESS_PORT)
     private readonly featureAccess: FeatureAccessPort,
@@ -107,7 +144,11 @@ export class GetPublicProfileUseCase {
           )
         : false
 
-    return { profile, contactEnabled }
+    // Extras premium (dados médicos + contatos) resolvidos AO VIVO — não
+    // cacheados, para refletir mudanças de plano/privacidade imediatamente.
+    const { medical, contacts } = await this.resolvePremiumExtras(tag, profile)
+
+    return { profile, contactEnabled, medical, contacts }
   }
 
   private async trackAccess(
@@ -126,6 +167,71 @@ export class GetPublicProfileUseCase {
       })
     } catch {
       // RNF10: falha no registro de acesso nunca derruba o perfil.
+    }
+  }
+
+  /**
+   * Resolve os dados premium expostos no perfil público:
+   *  - `medical`: feature `PET_MEDICAL` + privacidade `showMedical`/`showVeterinarian`.
+   *  - `contacts`: feature `MULTIPLE_CONTACTS` + privacidade `showContacts`.
+   *
+   * Calculado ao vivo (não cacheado) para que upgrade/downgrade de plano e
+   * mudanças de privacidade reflitam imediatamente. Só roda para perfil ativo.
+   */
+  private async resolvePremiumExtras(
+    tag: NfcTag,
+    profile: PublicProfile,
+  ): Promise<{ medical: PublicMedicalInfo | null; contacts: PublicContactInfo[] }> {
+    if (!profile.isActive || !tag.petId || !tag.ownerId) {
+      return { medical: null, contacts: [] }
+    }
+
+    const pet = await this.pets.findById(tag.petId)
+    if (!pet || pet.deletedAt !== null) {
+      return { medical: null, contacts: [] }
+    }
+
+    const [hasMedical, hasContacts] = await Promise.all([
+      this.featureAccess.hasFeature(tag.ownerId, PET_MEDICAL_FEATURE),
+      this.featureAccess.hasFeature(tag.ownerId, MULTIPLE_CONTACTS_FEATURE),
+    ])
+
+    let medical: PublicMedicalInfo | null = null
+    if (hasMedical && (pet.privacy.showMedical || pet.privacy.showVeterinarian)) {
+      const raw = await this.medical.findByPetId(pet.id)
+      const info = raw ? this.toPublicMedical(raw, pet.privacy) : null
+      medical = info && hasAnyValue(info) ? info : null
+    }
+
+    let contacts: PublicContactInfo[] = []
+    if (hasContacts && pet.privacy.showContacts) {
+      const list = await this.contacts.listByPet(pet.id)
+      contacts = list.map((c) => this.toPublicContact(c))
+    }
+
+    return { medical, contacts }
+  }
+
+  private toPublicMedical(
+    raw: PetMedical,
+    privacy: PetPrivacy,
+  ): PublicMedicalInfo {
+    return {
+      allergies: privacy.showMedical ? raw.allergies : null,
+      medications: privacy.showMedical ? raw.medications : null,
+      specialCare: privacy.showMedical ? raw.specialCare : null,
+      medicalConditions: privacy.showMedical ? raw.medicalConditions : null,
+      veterinarianName: privacy.showVeterinarian ? raw.veterinarianName : null,
+      veterinarianPhone: privacy.showVeterinarian ? raw.veterinarianPhone : null,
+    }
+  }
+
+  private toPublicContact(c: PetContact): PublicContactInfo {
+    return {
+      name: c.name,
+      phone: c.phone,
+      email: c.email,
+      relationship: c.relationship,
     }
   }
 
@@ -171,4 +277,16 @@ export class GetPublicProfileUseCase {
       ? PROFILE_CACHE_TTL_LOST_SECONDS
       : PROFILE_CACHE_TTL_SECONDS
   }
+}
+
+/** true se ao menos um campo do resumo médico tem valor (senão não expõe). */
+function hasAnyValue(info: PublicMedicalInfo): boolean {
+  return (
+    info.allergies !== null ||
+    info.medications !== null ||
+    info.specialCare !== null ||
+    info.medicalConditions !== null ||
+    info.veterinarianName !== null ||
+    info.veterinarianPhone !== null
+  )
 }

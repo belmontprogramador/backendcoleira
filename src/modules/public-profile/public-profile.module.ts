@@ -4,6 +4,8 @@ import { PetsModule } from '../pets/pets.module'
 import { UsersModule } from '../users/users.module'
 import { AccessEventsModule } from '../access-events/access-events.module'
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module'
+import { PetMedicalModule } from '../pet-medical/pet-medical.module'
+import { PetContactsModule } from '../pet-contacts/pet-contacts.module'
 import { GetPublicProfileUseCase } from './application/use-cases/get-public-profile.use-case'
 import { PublicProfileController } from './presentation/controllers/public-profile.controller'
 
@@ -21,6 +23,8 @@ import { PublicProfileController } from './presentation/controllers/public-profi
     UsersModule,
     AccessEventsModule,
     SubscriptionsModule,
+    PetMedicalModule,
+    PetContactsModule,
   ],
   controllers: [PublicProfileController],
   providers: [GetPublicProfileUseCase],

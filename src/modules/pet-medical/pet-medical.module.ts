@@ -23,5 +23,6 @@ import { PetMedicalController } from './presentation/controllers/pet-medical.con
     GetPetMedicalUseCase,
     UpsertPetMedicalUseCase,
   ],
+  exports: [PET_MEDICAL_REPOSITORY_PORT],
 })
 export class PetMedicalModule {}

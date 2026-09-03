@@ -1,4 +1,20 @@
-import type { PublicProfile } from '../../domain/value-objects/public-profile.vo'
+import type { PublicProfileResult } from '../use-cases/get-public-profile.use-case'
+
+export interface PublicMedicalResponse {
+  allergies: string | null
+  medications: string | null
+  special_care: string | null
+  medical_conditions: string | null
+  veterinarian_name: string | null
+  veterinarian_phone: string | null
+}
+
+export interface PublicContactResponse {
+  name: string
+  phone: string | null
+  email: string | null
+  relationship: string | null
+}
 
 export interface PublicProfileResponse {
   status: string
@@ -19,19 +35,20 @@ export interface PublicProfileResponse {
   } | null
   message: string | null
   contact_enabled: boolean
+  medical: PublicMedicalResponse | null
+  contacts: PublicContactResponse[]
 }
 
 /**
- * Converte o `PublicProfile` (VO) para o contrato público da API em
- * snake_case (doc-sistema §perfil-privacidade / plano-perfil-publico §5.4).
+ * Converte o `PublicProfileResult` (caso de uso) para o contrato público da
+ * API em snake_case (doc-sistema §perfil-privacidade / plano-perfil-publico §5.4).
  *
- * NÃO expõe a flag interna `kind` nem dados administrativos.
+ * NÃO expõe a flag interna `kind` nem dados administrativos. `medical`/`contacts`
+ * já chegam com a privacidade aplicada pelo caso de uso (feature premium + flags).
  */
 export class PublicProfileResponseMapper {
-  static toResponse(
-    profile: PublicProfile,
-    contactEnabled: boolean,
-  ): PublicProfileResponse {
+  static toResponse(result: PublicProfileResult): PublicProfileResponse {
+    const { profile, contactEnabled, medical, contacts } = result
     return {
       status: profile.status,
       pet: profile.pet
@@ -55,6 +72,22 @@ export class PublicProfileResponseMapper {
         : null,
       message: profile.message,
       contact_enabled: contactEnabled,
+      medical: medical
+        ? {
+            allergies: medical.allergies,
+            medications: medical.medications,
+            special_care: medical.specialCare,
+            medical_conditions: medical.medicalConditions,
+            veterinarian_name: medical.veterinarianName,
+            veterinarian_phone: medical.veterinarianPhone,
+          }
+        : null,
+      contacts: contacts.map((c) => ({
+        name: c.name,
+        phone: c.phone,
+        email: c.email,
+        relationship: c.relationship,
+      })),
     }
   }
 }

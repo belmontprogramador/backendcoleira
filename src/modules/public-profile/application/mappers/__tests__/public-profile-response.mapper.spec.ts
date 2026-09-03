@@ -1,5 +1,6 @@
 import { PublicProfileResponseMapper } from '../public-profile-response.mapper'
 import { PublicProfile } from '../../../domain/value-objects/public-profile.vo'
+import type { PublicProfileResult } from '../../use-cases/get-public-profile.use-case'
 import { Pet } from '../../../../pets/domain/entities/pet.entity'
 import { PetSpecies } from '../../../../pets/domain/value-objects/pet-species.vo'
 import { User } from '../../../../users/domain/entities/user.entity'
@@ -30,13 +31,27 @@ describe('PublicProfileResponseMapper', () => {
     })
   }
 
+  function makeResult(
+    overrides: Partial<PublicProfileResult> = {},
+  ): PublicProfileResult {
+    return {
+      profile: PublicProfile.unactivated('AVAILABLE'),
+      contactEnabled: false,
+      medical: null,
+      contacts: [],
+      ...overrides,
+    }
+  }
+
   it('mapeia perfil ativo para snake_case', () => {
     const pet = makePet()
     pet.markLost()
 
     const response = PublicProfileResponseMapper.toResponse(
-      PublicProfile.active(pet, makeOwner()),
-      true,
+      makeResult({
+        profile: PublicProfile.active(pet, makeOwner()),
+        contactEnabled: true,
+      }),
     )
 
     expect(response).toEqual({
@@ -58,13 +73,54 @@ describe('PublicProfileResponseMapper', () => {
       },
       message: null,
       contact_enabled: true,
+      medical: null,
+      contacts: [],
     })
+  })
+
+  it('mapeia dados médicos e contatos (premium) para snake_case', () => {
+    const response = PublicProfileResponseMapper.toResponse(
+      makeResult({
+        medical: {
+          allergies: 'Dipirona',
+          medications: 'Vermífugo',
+          specialCare: 'Não dar chocolate',
+          medicalConditions: 'Nenhuma',
+          veterinarianName: 'Dra. Ana',
+          veterinarianPhone: '(21) 98888-7777',
+        },
+        contacts: [
+          {
+            name: 'Maria (mãe)',
+            phone: '(21) 97777-6666',
+            email: 'maria@example.com',
+            relationship: 'Família',
+          },
+        ],
+      }),
+    )
+
+    expect(response.medical).toEqual({
+      allergies: 'Dipirona',
+      medications: 'Vermífugo',
+      special_care: 'Não dar chocolate',
+      medical_conditions: 'Nenhuma',
+      veterinarian_name: 'Dra. Ana',
+      veterinarian_phone: '(21) 98888-7777',
+    })
+    expect(response.contacts).toEqual([
+      {
+        name: 'Maria (mãe)',
+        phone: '(21) 97777-6666',
+        email: 'maria@example.com',
+        relationship: 'Família',
+      },
+    ])
   })
 
   it('mapeia pingente não ativado (pet/owner null)', () => {
     const response = PublicProfileResponseMapper.toResponse(
-      PublicProfile.unactivated('AVAILABLE'),
-      false,
+      makeResult({ profile: PublicProfile.unactivated('AVAILABLE') }),
     )
 
     expect(response).toEqual({
@@ -73,13 +129,14 @@ describe('PublicProfileResponseMapper', () => {
       owner: null,
       message: 'Este pingente ainda não foi ativado',
       contact_enabled: false,
+      medical: null,
+      contacts: [],
     })
   })
 
   it('não expõe a flag interna kind', () => {
     const response = PublicProfileResponseMapper.toResponse(
-      PublicProfile.unactivated('AVAILABLE'),
-      false,
+      makeResult({ profile: PublicProfile.unactivated('AVAILABLE') }),
     )
 
     expect(response).not.toHaveProperty('kind')
