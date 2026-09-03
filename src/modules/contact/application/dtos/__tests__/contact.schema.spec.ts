@@ -65,6 +65,15 @@ describe('contactSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  it('aceita sender_phone no formato brasileiro com ponto', () => {
+    const result = contactSchema.safeParse({
+      message: 'Oi',
+      sender_phone: '(22) 9.9105-9163',
+    })
+
+    expect(result.success).toBe(true)
+  })
+
   it('rejeita sender_phone inválido', () => {
     const result = contactSchema.safeParse({
       message: 'Oi',

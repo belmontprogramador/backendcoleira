@@ -2,9 +2,10 @@ import { z } from 'zod'
 
 /**
  * Telefone do visitante — permissivo (não exige E.164). Aceita dígitos,
- * espaços, parênteses, hífen e prefixo `+`; 8 a 20 caracteres.
+ * espaços, parênteses, hífen, ponto (formato brasileiro "(22) 9.9105-9163")
+ * e prefixo `+`; 8 a 20 caracteres.
  */
-const PHONE_REGEX = /^\+?[0-9()\s-]{8,20}$/
+const PHONE_REGEX = /^\+?[0-9()\s.-]{8,20}$/
 
 /**
  * Corpo do endpoint público `POST /p/:publicId/contact` (RF14, Basic).
