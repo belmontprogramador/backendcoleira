@@ -34,6 +34,12 @@ export const contactSchema = z.object({
     .max(254, 'E-mail excede 254 caracteres')
     .optional(),
   source: z.enum(['nfc', 'qr', 'direct']).optional().default('direct'),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
 })
+  .refine(
+    (v) => (v.latitude === undefined) === (v.longitude === undefined),
+    { message: 'latitude e longitude devem vir juntas' },
+  )
 
 export type ContactDto = z.infer<typeof contactSchema>

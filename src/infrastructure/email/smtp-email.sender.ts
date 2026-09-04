@@ -141,20 +141,29 @@ export class SmtpEmailSender implements EmailSenderPort {
     to: string,
     data: ContactMessageEmailData,
   ): Promise<void> {
+    const mapLink =
+      data.latitude !== null && data.longitude !== null
+        ? `https://www.google.com/maps?q=${data.latitude},${data.longitude}`
+        : null
+    const locationLine = mapLink ?? 'localização não rastreada'
     const subject = `Nova mensagem sobre ${data.petName} — Elopet`
     const text =
       `Nova mensagem de contato sobre ${data.petName}.\n\n` +
       `De: ${data.senderName ?? 'Anônimo'}\n` +
       `Telefone: ${data.senderPhone ?? '—'}\n` +
       `E-mail: ${data.senderEmail ?? '—'}\n` +
-      `Localização aproximada: ${data.location ?? '—'}\n\n` +
+      `Localização: ${locationLine}\n\n` +
       `Mensagem:\n${data.message}`
     const html =
       `<h1>Nova mensagem sobre ${data.petName}</h1>` +
       `<p><strong>De:</strong> ${data.senderName ?? 'Anônimo'}</p>` +
       `<p><strong>Telefone:</strong> ${data.senderPhone ?? '—'}</p>` +
       `<p><strong>E-mail:</strong> ${data.senderEmail ?? '—'}</p>` +
-      `<p><strong>Localização aproximada:</strong> ${data.location ?? '—'}</p>` +
+      `<p><strong>Localização:</strong> ${
+        mapLink
+          ? `<a href="${mapLink}">📍 Ver no mapa</a>`
+          : 'localização não rastreada'
+      }</p>` +
       `<p>${data.message}</p>`
     await this.send(to, subject, html, text)
   }
@@ -172,18 +181,21 @@ export class SmtpEmailSender implements EmailSenderPort {
       data.latitude !== null && data.longitude !== null
         ? `https://www.google.com/maps?q=${data.latitude},${data.longitude}`
         : null
+    const locationLine = mapLink ?? 'localização não rastreada'
     const subject = `Alguém acessou o perfil de ${data.petName} — Elopet`
     const text =
       `Alguém acessou o perfil do seu pet ${data.petName}.\n\n` +
       `Via: ${sourceLabel[data.source]}\n` +
-      `Localização aproximada: ${data.location ?? '—'}\n` +
-      (mapLink ? `Ver no mapa: ${mapLink}\n\n` : '\n') +
+      `Localização: ${locationLine}\n\n` +
       'Se o seu pet está perdido, essa informação pode ajudar na busca.'
     const html =
       `<h1>Alguém acessou o perfil de ${data.petName}</h1>` +
       `<p><strong>Via:</strong> ${sourceLabel[data.source]}</p>` +
-      `<p><strong>Localização aproximada:</strong> ${data.location ?? '—'}</p>` +
-      (mapLink ? `<p><a href="${mapLink}">📍 Ver no mapa</a></p>` : '') +
+      `<p><strong>Localização:</strong> ${
+        mapLink
+          ? `<a href="${mapLink}">📍 Ver no mapa</a>`
+          : 'localização não rastreada'
+      }</p>` +
       '<p>Se o seu pet está perdido, essa informação pode ajudar na busca.</p>'
     await this.send(to, subject, html, text)
   }

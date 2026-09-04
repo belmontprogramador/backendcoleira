@@ -55,6 +55,8 @@ export class ContactController {
       ip: clientIp ?? null,
       ipHash: this.ipHasher.hash(clientIp),
       userAgent: userAgent ?? null,
+      latitude: body.latitude ?? null,
+      longitude: body.longitude ?? null,
     })
   }
 }

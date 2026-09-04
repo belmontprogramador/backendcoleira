@@ -15,6 +15,8 @@ export interface ContactMessageResponse {
   message: string
   source: AccessSource
   locationApprox: string | null
+  latitude: number | null
+  longitude: number | null
   isRead: boolean
   readAt: Date | null
   createdAt: Date
@@ -31,6 +33,8 @@ export class ContactMessageResponseMapper {
       message: message.message,
       source: message.source,
       locationApprox: message.locationApprox,
+      latitude: message.latitude,
+      longitude: message.longitude,
       isRead: message.isRead,
       readAt: message.readAt,
       createdAt: message.createdAt,

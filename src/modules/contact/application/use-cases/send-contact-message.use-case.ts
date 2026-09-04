@@ -33,6 +33,8 @@ export interface SendContactMessageInput {
   ip?: string | null
   ipHash?: string | null
   userAgent?: string | null
+  latitude?: number | null
+  longitude?: number | null
 }
 
 /**
@@ -121,6 +123,8 @@ export class SendContactMessageUseCase {
       ipHash: input.ipHash ?? null,
       userAgent: input.userAgent ?? null,
       locationApprox,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
     })
 
     await this.messages.save(message)
@@ -133,7 +137,8 @@ export class SendContactMessageUseCase {
         senderPhone: message.senderPhone,
         senderEmail: message.senderEmail,
         message: message.message,
-        location: message.locationApprox,
+        latitude: message.latitude,
+        longitude: message.longitude,
       })
     } catch {
       this.logger.warn(

@@ -10,16 +10,15 @@ export interface ContactMessageEmailData {
   senderPhone: string | null
   senderEmail: string | null
   message: string
-  /** Localização aproximada de quem enviou (IP→geo, pode ser null). */
-  location: string | null
+  /** Coordenadas GPS reportadas pelo navegador (null = não rastreada). */
+  latitude: number | null
+  longitude: number | null
 }
 
 export interface ScanAlertEmailData {
   petName: string
   source: AccessSource
-  /** Localização aproximada de quem acessou (IP→geo, pode ser null). */
-  location: string | null
-  /** Coordenadas GPS reportadas pelo navegador (null = permissão negada). */
+  /** Coordenadas GPS reportadas pelo navegador (null = não rastreada). */
   latitude: number | null
   longitude: number | null
 }

@@ -89,4 +89,34 @@ describe('contactSchema', () => {
     })
     expect(result.success).toBe(false)
   })
+
+  it('aceita latitude/longitude quando vêm juntas', () => {
+    const result = contactSchema.safeParse({
+      message: 'Oi',
+      latitude: -22.9068,
+      longitude: -43.1729,
+    })
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.data.latitude).toBe(-22.9068)
+      expect(result.data.longitude).toBe(-43.1729)
+    }
+  })
+
+  it('rejeita quando latitude e longitude não vêm juntas', () => {
+    const result = contactSchema.safeParse({
+      message: 'Oi',
+      latitude: -22.9068,
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejeita latitude fora do range', () => {
+    const result = contactSchema.safeParse({
+      message: 'Oi',
+      latitude: 999,
+      longitude: -43.1729,
+    })
+    expect(result.success).toBe(false)
+  })
 })

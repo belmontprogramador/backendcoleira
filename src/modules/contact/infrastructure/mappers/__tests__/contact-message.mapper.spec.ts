@@ -26,6 +26,8 @@ describe('ContactMessageMapper', () => {
       ip_hash: null,
       user_agent: null,
       location_approx: null,
+      latitude: null,
+      longitude: null,
       read_at: null,
       created_at: msg.createdAt,
     })
@@ -45,6 +47,8 @@ describe('ContactMessageMapper', () => {
       ip_hash: 'hash',
       user_agent: 'UA',
       location_approx: 'São Paulo, SP, Brazil',
+      latitude: -22.9068,
+      longitude: -43.1729,
       read_at: readAt,
       created_at: new Date('2026-01-01T00:00:00.000Z'),
     } as unknown as ContactMessageModel
@@ -55,6 +59,8 @@ describe('ContactMessageMapper', () => {
     expect(msg.senderName).toBe('Ana')
     expect(msg.source).toBe(AccessSource.NFC)
     expect(msg.locationApprox).toBe('São Paulo, SP, Brazil')
+    expect(msg.latitude).toBe(-22.9068)
+    expect(msg.longitude).toBe(-43.1729)
     expect(msg.readAt).toEqual(readAt)
     expect(msg.isRead).toBe(true)
   })

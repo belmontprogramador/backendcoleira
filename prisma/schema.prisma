@@ -317,6 +317,8 @@ model ContactMessage {
   ip_hash         String?
   user_agent      String?
   location_approx String?
+  latitude        Float?
+  longitude       Float?
   read_at         DateTime?
   created_at      DateTime     @default(now())
 

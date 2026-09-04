@@ -67,6 +67,8 @@ describe('ContactMessage (entity)', () => {
       ipHash: 'hash',
       userAgent: 'Mozilla/5.0',
       locationApprox: 'São Paulo, SP, Brazil',
+      latitude: -22.9068,
+      longitude: -43.1729,
       readAt,
       createdAt,
     })
@@ -74,6 +76,8 @@ describe('ContactMessage (entity)', () => {
     expect(msg.senderEmail).toBe('ana@example.com')
     expect(msg.senderPhone).toBe('+5511999999999')
     expect(msg.locationApprox).toBe('São Paulo, SP, Brazil')
+    expect(msg.latitude).toBe(-22.9068)
+    expect(msg.longitude).toBe(-43.1729)
     expect(msg.readAt).toEqual(readAt)
     expect(msg.createdAt).toEqual(createdAt)
     expect(msg.isRead).toBe(true)

@@ -19,6 +19,8 @@ export interface CreateContactMessageProps {
   ipHash?: string | null
   userAgent?: string | null
   locationApprox?: string | null
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export interface ReconstructContactMessageProps {
@@ -33,6 +35,8 @@ export interface ReconstructContactMessageProps {
   ipHash: string | null
   userAgent: string | null
   locationApprox: string | null
+  latitude: number | null
+  longitude: number | null
   readAt: Date | null
   createdAt: Date
 }
@@ -54,6 +58,8 @@ export class ContactMessage {
     private readonly _ipHash: string | null,
     private readonly _userAgent: string | null,
     private readonly _locationApprox: string | null,
+    private readonly _latitude: number | null,
+    private readonly _longitude: number | null,
     private _readAt: Date | null,
     private readonly _createdAt: Date,
   ) {}
@@ -75,6 +81,8 @@ export class ContactMessage {
       props.ipHash ?? null,
       props.userAgent ?? null,
       props.locationApprox ?? null,
+      props.latitude ?? null,
+      props.longitude ?? null,
       null,
       new Date(),
     )
@@ -93,6 +101,8 @@ export class ContactMessage {
       props.ipHash,
       props.userAgent,
       props.locationApprox,
+      props.latitude,
+      props.longitude,
       props.readAt,
       props.createdAt,
     )
@@ -137,6 +147,12 @@ export class ContactMessage {
   }
   get locationApprox(): string | null {
     return this._locationApprox
+  }
+  get latitude(): number | null {
+    return this._latitude
+  }
+  get longitude(): number | null {
+    return this._longitude
   }
   get readAt(): Date | null {
     return this._readAt

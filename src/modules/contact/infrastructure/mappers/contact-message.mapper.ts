@@ -19,6 +19,8 @@ export class ContactMessageMapper {
     ip_hash: string | null
     user_agent: string | null
     location_approx: string | null
+    latitude: number | null
+    longitude: number | null
     read_at: Date | null
     created_at: Date
   } {
@@ -34,6 +36,8 @@ export class ContactMessageMapper {
       ip_hash: message.ipHash,
       user_agent: message.userAgent,
       location_approx: message.locationApprox,
+      latitude: message.latitude,
+      longitude: message.longitude,
       read_at: message.readAt,
       created_at: message.createdAt,
     }
@@ -52,6 +56,8 @@ export class ContactMessageMapper {
       ipHash: model.ip_hash,
       userAgent: model.user_agent,
       locationApprox: model.location_approx,
+      latitude: model.latitude,
+      longitude: model.longitude,
       readAt: model.read_at,
       createdAt: model.created_at,
     })

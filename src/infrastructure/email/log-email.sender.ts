@@ -56,8 +56,12 @@ export class LogEmailSender implements EmailSenderPort {
     to: string,
     data: ContactMessageEmailData,
   ): Promise<void> {
+    const coords =
+      data.latitude !== null && data.longitude !== null
+        ? `${data.latitude},${data.longitude}`
+        : 'não rastreada'
     this.logger.log(
-      `[contato] para=${to} pet=${data.petName} de=${data.senderName ?? 'anônimo'} localização=${data.location ?? '—'}`,
+      `[contato] para=${to} pet=${data.petName} de=${data.senderName ?? 'anônimo'} localização=${coords}`,
     )
     return Promise.resolve()
   }
@@ -66,9 +70,9 @@ export class LogEmailSender implements EmailSenderPort {
     const coords =
       data.latitude !== null && data.longitude !== null
         ? `${data.latitude},${data.longitude}`
-        : '—'
+        : 'não rastreada'
     this.logger.log(
-      `[alerta de acesso] para=${to} pet=${data.petName} via=${data.source} localização=${data.location ?? '—'} coords=${coords}`,
+      `[alerta de acesso] para=${to} pet=${data.petName} via=${data.source} localização=${coords}`,
     )
     return Promise.resolve()
   }

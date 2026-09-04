@@ -14,8 +14,8 @@ import type { FeatureAccessPort } from '../../../../common/ports/feature-access.
 import { EMAIL_SENDER_PORT } from '../../../../common/ports/email-sender.port'
 import type { EmailSenderPort } from '../../../../common/ports/email-sender.port'
 import { ACCESS_HISTORY_FEATURE } from '../../../../common/constants/features'
-import { AccessSource } from '../../../../common/constants/access-source'
 import type { NfcTag } from '../../../nfc/domain/entities/nfc-tag.entity'
+import type { AccessEvent } from '../../../access-events/domain/entities/access-event.entity'
 import { TagNotFoundError } from '../../../nfc/application/errors'
 import {
   AccessEventNotFoundError,
@@ -40,17 +40,22 @@ const ACCESS_LOCATION_REPORT_WINDOW_MS = 15 * 60 * 1000
 const SCAN_ALERT_THROTTLE_SECONDS = 600
 
 /**
+ * Intervalo entre o scan e o envio do e-mail de acesso. Dá tempo do visitante
+ * aceitar a permissão de localização do navegador (GPS) antes do disparo.
+ */
+const SCAN_ALERT_DELAY_MS = 30_000
+
+/**
  * Caso de uso: reportar a localização GPS do visitante (com permissão do
  * navegador) e amarrá-la ao `AccessEvent` criado no scan.
  *
  * Rota pública (não autenticada) — a defesa é: o `access_id` deve pertencer ao
  * pingente (`publicId`) e o evento deve ser recente.
  *
- * Side-effect (doc-sistema §11): dispara o e-mail de acesso ao tutor. O e-mail
- * é adiado até aqui (em vez do fetch do perfil) para que o GPS reportado pelo
- * navegador chegue antes. Fire em TODO escaneamento (não só pet perdido),
- * gateado por Premium (`ACCESS_HISTORY`) + throttle de 600s. Sem coordenadas
- * (permissão negada) → fallback para a localização IP armazenada no evento.
+ * Side-effect (doc-sistema §11): agenda o e-mail de acesso ao tutor para
+ * ~30s após o scan (não imediatamente), para que o GPS reportado chegue antes.
+ * Fire em TODO escaneamento, gateado por Premium (`ACCESS_HISTORY`) + throttle
+ * de 600s. Sem coordenadas → o e-mail mostra "localização não rastreada".
  */
 @Injectable()
 export class ReportAccessLocationUseCase {
@@ -98,25 +103,16 @@ export class ReportAccessLocationUseCase {
       )
     }
 
-    await this.notifyScan(
-      tag,
-      event.source,
-      event.locationApprox,
-      input.latitude,
-      input.longitude,
-    )
+    await this.scheduleScanAlert(tag, event)
   }
 
   /**
-   * E-mail de acesso ao tutor (todo scan, Premium `ACCESS_HISTORY`, throttled).
-   * Usa o GPS reportado quando presente; senão, a localização IP do evento.
+   * Agenda o e-mail de acesso (todo scan, Premium `ACCESS_HISTORY`, throttled)
+   * para disparar ~30s após o scan — tempo do visitante aceitar o GPS.
    */
-  private async notifyScan(
+  private async scheduleScanAlert(
     tag: NfcTag,
-    source: AccessSource,
-    locationApprox: string | null,
-    latitude: number | null,
-    longitude: number | null,
+    event: AccessEvent,
   ): Promise<void> {
     if (!tag.petId || !tag.ownerId) {
       return
@@ -127,33 +123,65 @@ export class ReportAccessLocationUseCase {
       return
     }
 
-    const pet = await this.pets.findById(tag.petId)
-    if (!pet || pet.deletedAt !== null) {
-      return
-    }
-
-    const hasAlert = await this.featureAccess.hasFeature(
-      tag.ownerId,
-      ACCESS_HISTORY_FEATURE,
-    )
-    if (!hasAlert) {
-      return
-    }
-
-    const owner = await this.users.findById(tag.ownerId)
-    if (!owner) {
-      return
-    }
-
+    // Reserva o slot do throttle já agora (evita agendar em duplicidade para
+    // scans repetidos do mesmo pet dentro da janela).
     await this.cache.set(throttleKey, '1', SCAN_ALERT_THROTTLE_SECONDS)
 
+    // Delay medido a partir do SCAN (event.createdAt), não do report.
+    const elapsed = Date.now() - event.createdAt.getTime()
+    const delayMs = Math.max(0, SCAN_ALERT_DELAY_MS - elapsed)
+
+    const petId = tag.petId
+    const ownerId = tag.ownerId
+    const eventId = event.id
+
+    const timer: NodeJS.Timeout = setTimeout(() => {
+      void this.sendScanAlert(petId, ownerId, eventId).catch(() => {})
+    }, delayMs)
+    // Não deixa o timer segurar o event loop (testes e encerramento limpo).
+    if (typeof timer.unref === 'function') {
+      timer.unref()
+    }
+  }
+
+  /**
+   * Envia o e-mail re-lendo o evento no disparo — assim pega as coordenadas
+   * GPS finais (o navegador pode ter reportado durante os ~30s de espera).
+   */
+  private async sendScanAlert(
+    petId: string,
+    ownerId: string,
+    eventId: string,
+  ): Promise<void> {
     try {
+      const event = await this.events.findById(eventId)
+      if (!event) {
+        return
+      }
+
+      const pet = await this.pets.findById(petId)
+      if (!pet || pet.deletedAt !== null) {
+        return
+      }
+
+      const hasAlert = await this.featureAccess.hasFeature(
+        ownerId,
+        ACCESS_HISTORY_FEATURE,
+      )
+      if (!hasAlert) {
+        return
+      }
+
+      const owner = await this.users.findById(ownerId)
+      if (!owner) {
+        return
+      }
+
       await this.email.sendScanAlertEmail(owner.email.value, {
         petName: pet.name,
-        source,
-        location: locationApprox,
-        latitude,
-        longitude,
+        source: event.source,
+        latitude: event.latitude,
+        longitude: event.longitude,
       })
     } catch {
       // best-effort: falha de e-mail nunca derruba o report de localização.

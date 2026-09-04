@@ -179,7 +179,32 @@ describe('SendContactMessageUseCase', () => {
         petName: 'Thor',
         message: 'Achei seu cachorro!',
         senderName: 'Ana',
-        location: 'São Paulo, SP, Brazil',
+        latitude: null,
+        longitude: null,
+      }),
+    )
+  })
+
+  it('salva e envia as coordenadas GPS quando o visitante reporta', async () => {
+    tags.findByPublicId.mockResolvedValue(makeTag('pet-1'))
+    pets.findById.mockResolvedValue(makePet())
+    users.findById.mockResolvedValue(makeOwner())
+
+    await useCase.execute({
+      ...baseInput,
+      latitude: -22.9068,
+      longitude: -43.1729,
+    })
+
+    const saved = messages.save.mock.calls[0][0]
+    expect(saved.latitude).toBe(-22.9068)
+    expect(saved.longitude).toBe(-43.1729)
+
+    expect(email.sendContactMessageEmail).toHaveBeenCalledWith(
+      'joao@example.com',
+      expect.objectContaining({
+        latitude: -22.9068,
+        longitude: -43.1729,
       }),
     )
   })

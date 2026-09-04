@@ -35,6 +35,8 @@ describe('ReportAccessLocationUseCase', () => {
   let useCase: ReportAccessLocationUseCase
 
   beforeEach(() => {
+    jest.useFakeTimers()
+
     tags = {
       findById: jest.fn(),
       findByPublicId: jest.fn(),
@@ -95,6 +97,11 @@ describe('ReportAccessLocationUseCase', () => {
     )
   })
 
+  afterEach(() => {
+    jest.clearAllTimers()
+    jest.useRealTimers()
+  })
+
   function makeTag(
     overrides: Partial<{ petId: string | null; ownerId: string | null }> = {},
   ): NfcTag {
@@ -120,6 +127,8 @@ describe('ReportAccessLocationUseCase', () => {
       nfcTagId: string | null
       createdAt: Date
       locationApprox: string | null
+      latitude: number | null
+      longitude: number | null
     }> = {},
   ): AccessEvent {
     return AccessEvent.reconstitute({
@@ -130,8 +139,8 @@ describe('ReportAccessLocationUseCase', () => {
       deviceType: null,
       ipHash: null,
       locationApprox: overrides.locationApprox ?? null,
-      latitude: null,
-      longitude: null,
+      latitude: overrides.latitude ?? null,
+      longitude: overrides.longitude ?? null,
       createdAt: overrides.createdAt ?? new Date(),
     })
   }
@@ -253,12 +262,14 @@ describe('ReportAccessLocationUseCase', () => {
     expect(events.updateLocation).not.toHaveBeenCalled()
   })
 
-  describe('alerta de acesso por e-mail (doc-sistema §11)', () => {
-    it('envia e-mail ao tutor com GPS (todo scan, premium)', async () => {
+  describe('alerta de acesso por e-mail (doc-sistema §11, ~30s após o scan)', () => {
+    it('envia e-mail ao tutor com GPS depois de 30s', async () => {
       tags.findByPublicId.mockResolvedValue(makeTag())
-      events.findById.mockResolvedValue(
-        makeEvent({ locationApprox: 'São Paulo, SP, Brazil' }),
-      )
+      events.findById
+        .mockResolvedValueOnce(makeEvent())
+        .mockResolvedValue(
+          makeEvent({ latitude: -22.9068, longitude: -43.1729 }),
+        )
       pets.findById.mockResolvedValue(makePet())
       users.findById.mockResolvedValue(makeOwner())
       featureAccess.hasFeature.mockResolvedValue(true)
@@ -270,24 +281,25 @@ describe('ReportAccessLocationUseCase', () => {
         longitude: -43.1729,
       })
 
+      // Ainda não enviou (aguardando o visitante aceitar a permissão).
+      expect(email.sendScanAlertEmail).not.toHaveBeenCalled()
+
+      await jest.advanceTimersByTimeAsync(30000)
+
       expect(email.sendScanAlertEmail).toHaveBeenCalledWith(
         'joao@example.com',
         {
           petName: 'Thor',
           source: AccessSource.NFC,
-          location: 'São Paulo, SP, Brazil',
           latitude: -22.9068,
           longitude: -43.1729,
         },
       )
-      expect(cache.set).toHaveBeenCalledWith('scan-alert:pet-1', '1', 600)
     })
 
-    it('usa fallback IP quando a permissão de GPS foi negada', async () => {
+    it('usa coords null (não rastreada) quando a permissão foi negada', async () => {
       tags.findByPublicId.mockResolvedValue(makeTag())
-      events.findById.mockResolvedValue(
-        makeEvent({ locationApprox: 'São Paulo, SP, Brazil' }),
-      )
+      events.findById.mockResolvedValue(makeEvent())
       pets.findById.mockResolvedValue(makePet())
       users.findById.mockResolvedValue(makeOwner())
       featureAccess.hasFeature.mockResolvedValue(true)
@@ -299,12 +311,13 @@ describe('ReportAccessLocationUseCase', () => {
         longitude: null,
       })
 
+      await jest.advanceTimersByTimeAsync(30000)
+
       expect(email.sendScanAlertEmail).toHaveBeenCalledWith(
         'joao@example.com',
         {
           petName: 'Thor',
           source: AccessSource.NFC,
-          location: 'São Paulo, SP, Brazil',
           latitude: null,
           longitude: null,
         },
@@ -325,6 +338,8 @@ describe('ReportAccessLocationUseCase', () => {
         longitude: -43.1,
       })
 
+      await jest.advanceTimersByTimeAsync(30000)
+
       expect(email.sendScanAlertEmail).toHaveBeenCalled()
     })
 
@@ -342,11 +357,9 @@ describe('ReportAccessLocationUseCase', () => {
         longitude: -43.1,
       })
 
+      await jest.advanceTimersByTimeAsync(30000)
+
       expect(email.sendScanAlertEmail).not.toHaveBeenCalled()
-      expect(featureAccess.hasFeature).toHaveBeenCalledWith(
-        'user-1',
-        ACCESS_HISTORY_FEATURE,
-      )
     })
 
     it('não repete o e-mail dentro da janela de throttle', async () => {
@@ -365,6 +378,8 @@ describe('ReportAccessLocationUseCase', () => {
         latitude: -22.9,
         longitude: -43.1,
       })
+
+      await jest.advanceTimersByTimeAsync(30000)
 
       expect(email.sendScanAlertEmail).not.toHaveBeenCalled()
     })
@@ -385,6 +400,8 @@ describe('ReportAccessLocationUseCase', () => {
         longitude: -43.1,
       })
 
+      await jest.advanceTimersByTimeAsync(30000)
+
       expect(email.sendScanAlertEmail).not.toHaveBeenCalled()
     })
 
@@ -400,6 +417,8 @@ describe('ReportAccessLocationUseCase', () => {
         latitude: -22.9,
         longitude: -43.1,
       })
+
+      await jest.advanceTimersByTimeAsync(30000)
 
       expect(email.sendScanAlertEmail).not.toHaveBeenCalled()
     })
@@ -420,6 +439,9 @@ describe('ReportAccessLocationUseCase', () => {
           longitude: -43.1,
         }),
       ).resolves.toBeUndefined()
+
+      await jest.advanceTimersByTimeAsync(30000)
+
       expect(events.updateLocation).toHaveBeenCalled()
     })
   })

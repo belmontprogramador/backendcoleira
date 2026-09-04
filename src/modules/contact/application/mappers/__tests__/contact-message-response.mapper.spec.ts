@@ -16,6 +16,8 @@ describe('ContactMessageResponseMapper', () => {
       ipHash: 'ip-hash-secreto',
       userAgent: 'iPhone',
       locationApprox: 'São Paulo, SP, Brazil',
+      latitude: -22.9068,
+      longitude: -43.1729,
       readAt: new Date('2026-06-01T12:00:00Z'),
       createdAt: new Date('2026-01-01T00:00:00Z'),
     })
@@ -31,6 +33,8 @@ describe('ContactMessageResponseMapper', () => {
       message: 'Achei seu cachorro!',
       source: AccessSource.QR,
       locationApprox: 'São Paulo, SP, Brazil',
+      latitude: -22.9068,
+      longitude: -43.1729,
       isRead: true,
       readAt: new Date('2026-06-01T12:00:00Z'),
       createdAt: new Date('2026-01-01T00:00:00Z'),
@@ -54,6 +58,8 @@ describe('ContactMessageResponseMapper', () => {
       ipHash: null,
       userAgent: null,
       locationApprox: null,
+      latitude: null,
+      longitude: null,
       readAt: null,
       createdAt: new Date('2026-01-01T00:00:00Z'),
     })

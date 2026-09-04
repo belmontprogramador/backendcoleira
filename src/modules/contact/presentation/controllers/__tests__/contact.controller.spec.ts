@@ -50,6 +50,8 @@ describe('ContactController', () => {
       ip: '192.168.0.1',
       ipHash: 'hashed-192.168.0.1',
       userAgent: 'iPhone',
+      latitude: null,
+      longitude: null,
     })
   })
 
@@ -86,6 +88,24 @@ describe('ContactController', () => {
         senderName: null,
         senderPhone: null,
         senderEmail: null,
+      }),
+    )
+  })
+
+  it('repassa as coordenadas GPS quando o visitante as envia', async () => {
+    const body: ContactDto = {
+      message: 'Oi',
+      source: 'direct',
+      latitude: -22.9068,
+      longitude: -43.1729,
+    }
+
+    await controller.send('7F4K9M2Q', body, undefined, undefined)
+
+    expect(sendContactMessage.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        latitude: -22.9068,
+        longitude: -43.1729,
       }),
     )
   })
