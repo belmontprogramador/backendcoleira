@@ -15,9 +15,12 @@ export type EvolutionConnectionState =
   | 'unknown'
 
 export class EvolutionApiError extends Error {
-  constructor(message: string) {
+  readonly status?: number
+
+  constructor(message: string, status?: number) {
     super(message)
     this.name = 'EvolutionApiError'
+    this.status = status
   }
 }
 
@@ -83,12 +86,20 @@ export class EvolutionApiClient {
   async connectionState(
     instanceName: string,
   ): Promise<EvolutionConnectionState> {
-    const res = await this.request<ConnectionStateResponse>(
-      `/instance/connectionState/${instanceName}`,
-      { method: 'GET' },
-    )
-    const state = res.instance?.state
-    return (state as EvolutionConnectionState) ?? 'unknown'
+    try {
+      const res = await this.request<ConnectionStateResponse>(
+        `/instance/connectionState/${instanceName}`,
+        { method: 'GET' },
+      )
+      const state = res.instance?.state
+      return (state as EvolutionConnectionState) ?? 'unknown'
+    } catch (error) {
+      // Instância ainda não criada (primeiro pareamento) → "desconectada".
+      if (error instanceof EvolutionApiError && error.status === 404) {
+        return 'close'
+      }
+      throw error
+    }
   }
 
   async sendText(
@@ -130,7 +141,10 @@ export class EvolutionApiClient {
       this.logger.error(
         `Evolution ${path} falhou (${response.status}): ${JSON.stringify(body)}`,
       )
-      throw new EvolutionApiError(`Evolution API respondeu ${response.status}`)
+      throw new EvolutionApiError(
+        `Evolution API respondeu ${response.status}`,
+        response.status,
+      )
     }
 
     return body

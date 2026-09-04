@@ -91,6 +91,23 @@ describe('EvolutionApiClient', () => {
 
       await expect(client.connectionState('elopet')).resolves.toBe('unknown')
     })
+
+    it('retorna "close" quando a instância ainda não existe (404)', async () => {
+      fetchMock.mockResolvedValue(
+        jsonResponse(
+          {
+            status: 404,
+            error: 'Not Found',
+            response: { message: ['The "elopet" instance does not exist'] },
+          },
+          false,
+          404,
+        ),
+      )
+      const client = new EvolutionApiClient(baseUrl, apiKey)
+
+      await expect(client.connectionState('elopet')).resolves.toBe('close')
+    })
   })
 
   describe('sendText', () => {
@@ -113,11 +130,13 @@ describe('EvolutionApiClient', () => {
   })
 
   describe('erros', () => {
-    it('lança EvolutionApiError em não-ok', async () => {
+    it('lança EvolutionApiError em não-ok, com status', async () => {
       fetchMock.mockResolvedValue(jsonResponse({ error: 'x' }, false, 500))
       const client = new EvolutionApiClient(baseUrl, apiKey)
 
-      await expect(client.connect('elopet')).rejects.toThrow(EvolutionApiError)
+      const error = await client.connect('elopet').catch((e: unknown) => e)
+      expect(error).toBeInstanceOf(EvolutionApiError)
+      expect((error as EvolutionApiError).status).toBe(500)
     })
 
     it('lança EvolutionApiError em falha de rede', async () => {
