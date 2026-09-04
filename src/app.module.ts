@@ -14,6 +14,7 @@ import { CryptoModule } from './infrastructure/crypto/crypto.module'
 import { DatabaseModule } from './infrastructure/database/database.module'
 import { AuditModule } from './infrastructure/audit/audit.module'
 import { EmailModule } from './infrastructure/email/email.module'
+import { WhatsAppModule } from './infrastructure/whatsapp/whatsapp.module'
 import { GeolocationModule } from './infrastructure/geolocation/geolocation.module'
 import { TemporaryTokenStoreModule } from './infrastructure/auth/temporary-token-store.module'
 import { RefreshTokenStoreModule } from './infrastructure/auth/refresh-token-store.module'
@@ -66,6 +67,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module'
     CryptoModule,
     AuditModule,
     EmailModule,
+    WhatsAppModule,
     GeolocationModule,
     TemporaryTokenStoreModule,
     RefreshTokenStoreModule,

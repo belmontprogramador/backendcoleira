@@ -38,6 +38,9 @@ export const envSchema = z.object({
   MERCADO_PAGO_WEBHOOK_SECRET: z.string().min(16).optional(),
   MERCADO_PAGO_ACCESS_TOKEN: z.string().optional(),
   MERCADO_PAGO_PUBLIC_KEY: z.string().optional(),
+  EVOLUTION_API_URL: z.string().optional(),
+  EVOLUTION_API_KEY: z.string().optional(),
+  EVOLUTION_INSTANCE_NAME: z.string().optional(),
 })
 
 export type Env = z.infer<typeof envSchema>

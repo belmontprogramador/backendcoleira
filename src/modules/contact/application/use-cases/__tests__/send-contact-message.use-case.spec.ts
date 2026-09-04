@@ -11,6 +11,7 @@ import type { PetRepositoryPort } from '../../../../pets/domain/repositories/pet
 import type { UserRepositoryPort } from '../../../../users/domain/repositories/user.repository.port'
 import type { ContactMessageRepositoryPort } from '../../../domain/repositories/contact-message.repository.port'
 import type { EmailSenderPort } from '../../../../../common/ports/email-sender.port'
+import type { WhatsAppSenderPort } from '../../../../../common/ports/whatsapp-sender.port'
 import type { FeatureAccessPort } from '../../../../../common/ports/feature-access.port'
 import type { IpGeolocationPort } from '../../../../../common/ports/ip-geolocation.port'
 import {
@@ -31,6 +32,7 @@ describe('SendContactMessageUseCase', () => {
   let users: jest.Mocked<UserRepositoryPort>
   let messages: jest.Mocked<ContactMessageRepositoryPort>
   let email: jest.Mocked<EmailSenderPort>
+  let whatsapp: jest.Mocked<WhatsAppSenderPort>
   let featureAccess: jest.Mocked<FeatureAccessPort>
   let geolocation: jest.Mocked<IpGeolocationPort>
   let useCase: SendContactMessageUseCase
@@ -75,10 +77,12 @@ describe('SendContactMessageUseCase', () => {
       sendTransferEmail: jest.fn(),
       sendContactMessageEmail: jest.fn(),
     }
+    whatsapp = { sendContactMessage: jest.fn() }
     featureAccess = { hasFeature: jest.fn(), listFeatures: jest.fn() }
     geolocation = { resolve: jest.fn() }
 
     email.sendContactMessageEmail.mockResolvedValue(undefined)
+    whatsapp.sendContactMessage.mockResolvedValue(undefined)
     featureAccess.hasFeature.mockResolvedValue(true)
     geolocation.resolve.mockResolvedValue('São Paulo, SP, Brazil')
     messages.save.mockResolvedValue(undefined)
@@ -89,6 +93,7 @@ describe('SendContactMessageUseCase', () => {
       users,
       messages,
       email,
+      whatsapp,
       featureAccess,
       geolocation,
     )
@@ -182,6 +187,10 @@ describe('SendContactMessageUseCase', () => {
         latitude: null,
         longitude: null,
       }),
+    )
+    expect(whatsapp.sendContactMessage).toHaveBeenCalledWith(
+      '(21) 99999-9999',
+      expect.stringContaining('🐾 Contato sobre Thor'),
     )
   })
 

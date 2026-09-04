@@ -10,6 +10,9 @@ import { CONTACT_MESSAGE_REPOSITORY_PORT } from '../../domain/repositories/conta
 import type { ContactMessageRepositoryPort } from '../../domain/repositories/contact-message.repository.port'
 import { EMAIL_SENDER_PORT } from '../../../../common/ports/email-sender.port'
 import type { EmailSenderPort } from '../../../../common/ports/email-sender.port'
+import { WHATSAPP_SENDER_PORT } from '../../../../common/ports/whatsapp-sender.port'
+import type { WhatsAppSenderPort } from '../../../../common/ports/whatsapp-sender.port'
+import { buildContactMessage } from '../../../../common/utils/whatsapp-messages'
 import { IP_GEOLOCATION_PORT } from '../../../../common/ports/ip-geolocation.port'
 import type { IpGeolocationPort } from '../../../../common/ports/ip-geolocation.port'
 import { FEATURE_ACCESS_PORT } from '../../../../common/ports/feature-access.port'
@@ -49,10 +52,10 @@ export interface SendContactMessageInput {
  *  2. Gate de feature (`CONTACT_MESSAGES`).
  *  3. Resolve a localização aproximada do remetente (IP→geo, best-effort).
  *  4. Persiste a `ContactMessage` (com `locationApprox`).
- *  5. E-mail ao tutor com a mensagem + localização (best-effort).
+ *  5. E-mail + WhatsApp ao tutor com a mensagem + localização (best-effort).
  *
- * Sem WhatsApp — o canal é somente e-mail. Falha do e-mail nunca derruba o
- * fluxo (a mensagem já foi persistida) — resiliência RNF10.
+ * Ambos os canais (e-mail e WhatsApp) são best-effort: falha de um nunca derruba
+ * o fluxo (a mensagem já foi persistida) — resiliência RNF10.
  */
 @Injectable()
 export class SendContactMessageUseCase {
@@ -69,6 +72,8 @@ export class SendContactMessageUseCase {
     private readonly messages: ContactMessageRepositoryPort,
     @Inject(EMAIL_SENDER_PORT)
     private readonly email: EmailSenderPort,
+    @Inject(WHATSAPP_SENDER_PORT)
+    private readonly whatsapp: WhatsAppSenderPort,
     @Inject(FEATURE_ACCESS_PORT)
     private readonly featureAccess: FeatureAccessPort,
     @Inject(IP_GEOLOCATION_PORT)
@@ -144,6 +149,24 @@ export class SendContactMessageUseCase {
       this.logger.warn(
         'Falha ao enviar e-mail de contato; mensagem permanece no inbox',
       )
+    }
+
+    // WhatsApp (best-effort): canal transacional para o tutor — falha não derruba.
+    try {
+      await this.whatsapp.sendContactMessage(
+        owner.phone ?? '',
+        buildContactMessage({
+          petName: pet.name,
+          senderName: message.senderName,
+          senderPhone: message.senderPhone,
+          senderEmail: message.senderEmail,
+          message: message.message,
+          latitude: message.latitude,
+          longitude: message.longitude,
+        }),
+      )
+    } catch {
+      this.logger.warn('Falha ao enviar WhatsApp de contato')
     }
 
     return { messageId: message.id }

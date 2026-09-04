@@ -14,6 +14,7 @@ import type { UserRepositoryPort } from '../../../../users/domain/repositories/u
 import type { CachePort } from '../../../../../common/ports/cache.port'
 import type { FeatureAccessPort } from '../../../../../common/ports/feature-access.port'
 import type { EmailSenderPort } from '../../../../../common/ports/email-sender.port'
+import type { WhatsAppSenderPort } from '../../../../../common/ports/whatsapp-sender.port'
 import {
   NfcTag,
   TagStatus,
@@ -32,6 +33,7 @@ describe('ReportAccessLocationUseCase', () => {
   let cache: jest.Mocked<CachePort>
   let featureAccess: jest.Mocked<FeatureAccessPort>
   let email: jest.Mocked<EmailSenderPort>
+  let whatsapp: jest.Mocked<WhatsAppSenderPort>
   let useCase: ReportAccessLocationUseCase
 
   beforeEach(() => {
@@ -86,6 +88,7 @@ describe('ReportAccessLocationUseCase', () => {
       sendContactMessageEmail: jest.fn(),
       sendScanAlertEmail: jest.fn(),
     }
+    whatsapp = { sendContactMessage: jest.fn() }
     useCase = new ReportAccessLocationUseCase(
       tags,
       events,
@@ -94,6 +97,7 @@ describe('ReportAccessLocationUseCase', () => {
       cache,
       featureAccess,
       email,
+      whatsapp,
     )
   })
 
@@ -294,6 +298,10 @@ describe('ReportAccessLocationUseCase', () => {
           latitude: -22.9068,
           longitude: -43.1729,
         },
+      )
+      expect(whatsapp.sendContactMessage).toHaveBeenCalledWith(
+        '(21) 99999-9999',
+        expect.stringContaining('🐾 Thor foi visto'),
       )
     })
 

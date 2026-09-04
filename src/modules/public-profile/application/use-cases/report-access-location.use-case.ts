@@ -13,6 +13,9 @@ import { FEATURE_ACCESS_PORT } from '../../../../common/ports/feature-access.por
 import type { FeatureAccessPort } from '../../../../common/ports/feature-access.port'
 import { EMAIL_SENDER_PORT } from '../../../../common/ports/email-sender.port'
 import type { EmailSenderPort } from '../../../../common/ports/email-sender.port'
+import { WHATSAPP_SENDER_PORT } from '../../../../common/ports/whatsapp-sender.port'
+import type { WhatsAppSenderPort } from '../../../../common/ports/whatsapp-sender.port'
+import { buildScanAlertMessage } from '../../../../common/utils/whatsapp-messages'
 import { ACCESS_HISTORY_FEATURE } from '../../../../common/constants/features'
 import type { NfcTag } from '../../../nfc/domain/entities/nfc-tag.entity'
 import type { AccessEvent } from '../../../access-events/domain/entities/access-event.entity'
@@ -73,6 +76,8 @@ export class ReportAccessLocationUseCase {
     private readonly featureAccess: FeatureAccessPort,
     @Inject(EMAIL_SENDER_PORT)
     private readonly email: EmailSenderPort,
+    @Inject(WHATSAPP_SENDER_PORT)
+    private readonly whatsapp: WhatsAppSenderPort,
   ) {}
 
   async execute(input: ReportAccessLocationInput): Promise<void> {
@@ -183,6 +188,11 @@ export class ReportAccessLocationUseCase {
         latitude: event.latitude,
         longitude: event.longitude,
       })
+
+      await this.whatsapp.sendContactMessage(
+        owner.phone ?? '',
+        buildScanAlertMessage(pet.name, event.latitude, event.longitude),
+      )
     } catch {
       // best-effort: falha de e-mail nunca derruba o report de localização.
     }

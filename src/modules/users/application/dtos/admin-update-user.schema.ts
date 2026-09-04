@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { brPhoneSchema } from '../../../../common/utils/phone'
 
 /**
  * Campos editáveis por um ADMIN sobre um usuário cliente (role inferior).
@@ -7,7 +8,7 @@ import { z } from 'zod'
  */
 export const adminUpdateUserSchema = z.object({
   name: z.string().min(2).optional(),
-  phone: z.string().optional().nullable(),
+  phone: brPhoneSchema.optional(),
 })
 
 export type AdminUpdateUserDto = z.infer<typeof adminUpdateUserSchema>

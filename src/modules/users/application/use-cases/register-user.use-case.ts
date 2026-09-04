@@ -22,7 +22,7 @@ export interface RegisterUserInput {
   name: string
   email: string
   password: string
-  phone?: string
+  phone?: string | null
 }
 
 export interface RegisterUserResult {
