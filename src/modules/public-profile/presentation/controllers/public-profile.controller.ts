@@ -1,15 +1,22 @@
 import {
+  Body,
   Controller,
   Get,
   Headers,
   Inject,
   Ip,
   Param,
+  Post,
   Query,
 } from '@nestjs/common'
 import { GetPublicProfileUseCase } from '../../application/use-cases/get-public-profile.use-case'
+import { ReportAccessLocationUseCase } from '../../application/use-cases/report-access-location.use-case'
 import { PublicProfileResponseMapper } from '../../application/mappers/public-profile-response.mapper'
 import { publicIdParamSchema } from '../../application/dtos/public-id-param.schema'
+import {
+  reportAccessLocationSchema,
+  type ReportAccessLocationDto,
+} from '../../application/dtos/report-access-location.schema'
 import { ZodValidationPipe } from '../../../../common/pipes/zod-validation.pipe'
 import { Public } from '../../../../common/decorators/public.decorator'
 import { parseAccessSource } from '../../../../common/constants/access-source'
@@ -27,6 +34,7 @@ import type { IpHasherPort } from '../../../../common/ports/ip-hasher.port'
 export class PublicProfileController {
   constructor(
     private readonly getPublicProfile: GetPublicProfileUseCase,
+    private readonly reportAccessLocation: ReportAccessLocationUseCase,
     @Inject(IP_HASHER_PORT) private readonly ipHasher: IpHasherPort,
   ) {}
 
@@ -52,5 +60,22 @@ export class PublicProfileController {
       deviceType: userAgent ?? null,
     })
     return PublicProfileResponseMapper.toResponse(result)
+  }
+
+  @Public()
+  @Post(':publicId/location')
+  async reportLocation(
+    @Param('publicId', new ZodValidationPipe(publicIdParamSchema))
+    publicId: string,
+    @Body(new ZodValidationPipe(reportAccessLocationSchema))
+    body: ReportAccessLocationDto,
+  ): Promise<{ ok: true }> {
+    await this.reportAccessLocation.execute({
+      publicId,
+      accessId: body.access_id,
+      latitude: body.latitude ?? null,
+      longitude: body.longitude ?? null,
+    })
+    return { ok: true }
   }
 }

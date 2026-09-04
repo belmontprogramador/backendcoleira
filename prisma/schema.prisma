@@ -292,6 +292,8 @@ model AccessEvent {
   device_type     String?
   ip_hash         String?
   location_approx String?
+  latitude        Float?
+  longitude       Float?
   created_at      DateTime     @default(now())
 
   pet Pet?    @relation(fields: [pet_id], references: [id], onDelete: SetNull)

@@ -7,6 +7,7 @@ import { SubscriptionsModule } from '../subscriptions/subscriptions.module'
 import { PetMedicalModule } from '../pet-medical/pet-medical.module'
 import { PetContactsModule } from '../pet-contacts/pet-contacts.module'
 import { GetPublicProfileUseCase } from './application/use-cases/get-public-profile.use-case'
+import { ReportAccessLocationUseCase } from './application/use-cases/report-access-location.use-case'
 import { PublicProfileController } from './presentation/controllers/public-profile.controller'
 
 /**
@@ -27,6 +28,6 @@ import { PublicProfileController } from './presentation/controllers/public-profi
     PetContactsModule,
   ],
   controllers: [PublicProfileController],
-  providers: [GetPublicProfileUseCase],
+  providers: [GetPublicProfileUseCase, ReportAccessLocationUseCase],
 })
 export class PublicProfileModule {}

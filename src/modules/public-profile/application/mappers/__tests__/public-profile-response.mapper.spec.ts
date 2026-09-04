@@ -40,6 +40,7 @@ describe('PublicProfileResponseMapper', () => {
       medical: null,
       contacts: [],
       locationApprox: null,
+      accessId: null,
       ...overrides,
     }
   }
@@ -77,6 +78,7 @@ describe('PublicProfileResponseMapper', () => {
       medical: null,
       contacts: [],
       location_approx: null,
+      access_id: null,
     })
   })
 
@@ -134,6 +136,7 @@ describe('PublicProfileResponseMapper', () => {
       medical: null,
       contacts: [],
       location_approx: null,
+      access_id: null,
     })
   })
 
@@ -151,5 +154,13 @@ describe('PublicProfileResponseMapper', () => {
     )
 
     expect(response.location_approx).toBe('Rio de Janeiro, RJ, Brazil')
+  })
+
+  it('mapeia accessId → access_id (snake_case)', () => {
+    const response = PublicProfileResponseMapper.toResponse(
+      makeResult({ accessId: 'ev-123' }),
+    )
+
+    expect(response.access_id).toBe('ev-123')
   })
 })

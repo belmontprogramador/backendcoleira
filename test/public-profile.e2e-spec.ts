@@ -201,6 +201,7 @@ describe('Perfil público (e2e)', () => {
       medical: null,
       contacts: [],
       location_approx: null,
+      access_id: expect.any(String),
     })
     expect(res.body).not.toHaveProperty('kind')
     expect(res.body).not.toHaveProperty('activation_code_encrypted')
@@ -355,6 +356,7 @@ describe('Perfil público (e2e)', () => {
       medical: null,
       contacts: [],
       location_approx: null,
+      access_id: expect.any(String),
     })
   })
 
@@ -396,5 +398,47 @@ describe('Perfil público (e2e)', () => {
 
   it('retorna 400 para public ID com formato inválido', async () => {
     await request(app.getHttpServer()).get('/p/ABC').expect(400)
+  })
+
+  it('reporta a localização GPS do visitante e amarra ao acesso', async () => {
+    const token = await createUser(
+      'u1',
+      'dono1@email.com',
+      'senhaForte123',
+      '+5521999999999',
+    )
+    await activateAndAssociate(token, '7F4K9M2Q', 'X8P4-L2Q9', {
+      name: 'Thor',
+      species: 'Cão',
+    })
+
+    const profile = await request(app.getHttpServer())
+      .get('/p/7F4K9M2Q')
+      .expect(200)
+    const accessId = (profile.body as { access_id: string }).access_id
+    expect(accessId).toBeTruthy()
+
+    await request(app.getHttpServer())
+      .post('/p/7F4K9M2Q/location')
+      .send({ access_id: accessId, latitude: -22.9068, longitude: -43.1729 })
+      .expect(201)
+
+    const ev = await prisma.accessEvent.findUnique({ where: { id: accessId } })
+    expect(ev?.latitude).toBe(-22.9068)
+    expect(ev?.longitude).toBe(-43.1729)
+  })
+
+  it('retorna 404 ao reportar localização para acesso inexistente', async () => {
+    await request(app.getHttpServer())
+      .post('/p/7F4K9M2Q/location')
+      .send({ access_id: 'ev-inexistente', latitude: -22.9, longitude: -43.1 })
+      .expect(404)
+  })
+
+  it('retorna 400 quando latitude e longitude não vêm juntas', async () => {
+    await request(app.getHttpServer())
+      .post('/p/7F4K9M2Q/location')
+      .send({ access_id: 'ev-1', latitude: -22.9 })
+      .expect(400)
   })
 })

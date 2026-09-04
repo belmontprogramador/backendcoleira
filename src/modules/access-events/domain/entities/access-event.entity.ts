@@ -8,6 +8,8 @@ export interface CreateAccessEventProps {
   deviceType?: string | null
   ipHash?: string | null
   locationApprox?: string | null
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export interface ReconstructAccessEventProps {
@@ -18,6 +20,8 @@ export interface ReconstructAccessEventProps {
   deviceType: string | null
   ipHash: string | null
   locationApprox: string | null
+  latitude: number | null
+  longitude: number | null
   createdAt: Date
 }
 
@@ -37,6 +41,8 @@ export class AccessEvent {
     private readonly _deviceType: string | null,
     private readonly _ipHash: string | null,
     private readonly _locationApprox: string | null,
+    private readonly _latitude: number | null,
+    private readonly _longitude: number | null,
     private readonly _createdAt: Date,
   ) {}
 
@@ -49,6 +55,8 @@ export class AccessEvent {
       props.deviceType ?? null,
       props.ipHash ?? null,
       props.locationApprox ?? null,
+      props.latitude ?? null,
+      props.longitude ?? null,
       new Date(),
     )
   }
@@ -62,6 +70,8 @@ export class AccessEvent {
       props.deviceType,
       props.ipHash,
       props.locationApprox,
+      props.latitude,
+      props.longitude,
       props.createdAt,
     )
   }
@@ -86,6 +96,12 @@ export class AccessEvent {
   }
   get locationApprox(): string | null {
     return this._locationApprox
+  }
+  get latitude(): number | null {
+    return this._latitude
+  }
+  get longitude(): number | null {
+    return this._longitude
   }
   get createdAt(): Date {
     return this._createdAt

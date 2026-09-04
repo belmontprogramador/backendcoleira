@@ -11,13 +11,10 @@ import { FEATURE_ACCESS_PORT } from '../../../../common/ports/feature-access.por
 import type { FeatureAccessPort } from '../../../../common/ports/feature-access.port'
 import { IP_GEOLOCATION_PORT } from '../../../../common/ports/ip-geolocation.port'
 import type { IpGeolocationPort } from '../../../../common/ports/ip-geolocation.port'
-import { EMAIL_SENDER_PORT } from '../../../../common/ports/email-sender.port'
-import type { EmailSenderPort } from '../../../../common/ports/email-sender.port'
 import {
   CONTACT_MESSAGES_FEATURE,
   PET_MEDICAL_FEATURE,
   MULTIPLE_CONTACTS_FEATURE,
-  ACCESS_HISTORY_FEATURE,
 } from '../../../../common/constants/features'
 import { PET_MEDICAL_REPOSITORY_PORT } from '../../../pet-medical/domain/repositories/pet-medical.repository.port'
 import type { PetMedicalRepositoryPort } from '../../../pet-medical/domain/repositories/pet-medical.repository.port'
@@ -77,10 +74,10 @@ export interface PublicProfileResult {
   /** Localização aproximada do visitante (IP→geo, best-effort). NÃO cacheada —
    *  é por request, usada no link do WhatsApp da página pública. */
   locationApprox: string | null
+  /** ID do `AccessEvent` criado neste acesso (null se o registro falhou).
+   *  Usado pelo front para reportar o GPS do navegador depois. */
+  accessId: string | null
 }
-
-/** Janela mínima entre alertas de acesso por pet (anti-spam, doc-sistema §11). */
-const SCAN_ALERT_THROTTLE_SECONDS = 600
 
 /**
  * Caso de uso: montar o perfil público de um pet a partir do `publicId`
@@ -122,8 +119,6 @@ export class GetPublicProfileUseCase {
     private readonly featureAccess: FeatureAccessPort,
     @Inject(IP_GEOLOCATION_PORT)
     private readonly geolocation: IpGeolocationPort,
-    @Inject(EMAIL_SENDER_PORT)
-    private readonly email: EmailSenderPort,
     private readonly registerAccessEvent: RegisterAccessEventUseCase,
   ) {}
 
@@ -142,7 +137,7 @@ export class GetPublicProfileUseCase {
     // tanto no side-effect de acesso quanto no link do WhatsApp da página.
     const locationApprox = await this.resolveLocation(input.ip)
 
-    await this.trackAccess(tag, input, locationApprox)
+    const accessId = await this.trackAccess(tag, input, locationApprox)
 
     const cached = await this.cache.get(key)
     const profile = cached
@@ -163,7 +158,7 @@ export class GetPublicProfileUseCase {
     // cacheados, para refletir mudanças de plano/privacidade imediatamente.
     const { medical, contacts } = await this.resolvePremiumExtras(tag, profile)
 
-    return { profile, contactEnabled, medical, contacts, locationApprox }
+    return { profile, contactEnabled, medical, contacts, locationApprox, accessId }
   }
 
   /** Resolve o IP→geo sem nunca lançar (best-effort, RNF10). */
@@ -179,9 +174,9 @@ export class GetPublicProfileUseCase {
     tag: NfcTag,
     input: GetPublicProfileInput,
     locationApprox: string | null,
-  ): Promise<void> {
+  ): Promise<string | null> {
     try {
-      await this.registerAccessEvent.execute({
+      const event = await this.registerAccessEvent.execute({
         petId: tag.petId,
         nfcTagId: tag.id,
         source: input.source ?? AccessSource.DIRECT,
@@ -189,59 +184,10 @@ export class GetPublicProfileUseCase {
         deviceType: input.deviceType ?? null,
         locationApprox,
       })
-      await this.notifyLostPetScan(tag, locationApprox, input.source)
+      return event.id
     } catch {
       // RNF10: falha no registro de acesso nunca derruba o perfil.
-    }
-  }
-
-  /**
-   * Alerta de pet perdido (doc-sistema §11, Premium `ACCESS_HISTORY`):
-   * quando alguém acessa o perfil de um pet PERDIDO, notifica o tutor por
-   * e-mail com a localização aproximada. Best-effort + throttled (anti-spam).
-   */
-  private async notifyLostPetScan(
-    tag: NfcTag,
-    locationApprox: string | null,
-    source: AccessSource | undefined,
-  ): Promise<void> {
-    if (!tag.petId || !tag.ownerId) {
-      return
-    }
-
-    const throttleKey = `scan-alert:${tag.petId}`
-    if (await this.cache.get(throttleKey)) {
-      return
-    }
-
-    const pet = await this.pets.findById(tag.petId)
-    if (!pet || pet.deletedAt !== null || !pet.lostStatus) {
-      return
-    }
-
-    const hasAlert = await this.featureAccess.hasFeature(
-      tag.ownerId,
-      ACCESS_HISTORY_FEATURE,
-    )
-    if (!hasAlert) {
-      return
-    }
-
-    const owner = await this.users.findById(tag.ownerId)
-    if (!owner) {
-      return
-    }
-
-    await this.cache.set(throttleKey, '1', SCAN_ALERT_THROTTLE_SECONDS)
-
-    try {
-      await this.email.sendScanAlertEmail(owner.email.value, {
-        petName: pet.name,
-        source: source ?? AccessSource.DIRECT,
-        location: locationApprox,
-      })
-    } catch {
-      // best-effort: falha de e-mail nunca derruba o scan.
+      return null
     }
   }
 

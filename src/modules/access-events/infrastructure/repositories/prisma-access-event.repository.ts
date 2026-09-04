@@ -18,6 +18,22 @@ export class PrismaAccessEventRepository implements AccessEventRepositoryPort {
     })
   }
 
+  async findById(id: string): Promise<AccessEvent | null> {
+    const model = await this.prisma.accessEvent.findUnique({ where: { id } })
+    return model ? AccessEventMapper.toDomain(model) : null
+  }
+
+  async updateLocation(
+    id: string,
+    latitude: number,
+    longitude: number,
+  ): Promise<void> {
+    await this.prisma.accessEvent.update({
+      where: { id },
+      data: { latitude, longitude },
+    })
+  }
+
   async listByPet(petId: string): Promise<AccessEvent[]> {
     const models = await this.prisma.accessEvent.findMany({
       where: { pet_id: petId },

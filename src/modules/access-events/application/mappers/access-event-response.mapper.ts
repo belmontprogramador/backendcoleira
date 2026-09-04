@@ -12,6 +12,8 @@ export class AccessEventResponseMapper {
       source: event.source,
       deviceType: event.deviceType,
       locationApprox: event.locationApprox,
+      latitude: event.latitude,
+      longitude: event.longitude,
       createdAt: event.createdAt,
     }
   }

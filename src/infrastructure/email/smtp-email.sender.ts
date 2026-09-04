@@ -168,16 +168,22 @@ export class SmtpEmailSender implements EmailSenderPort {
       [AccessSource.QR]: 'QR Code',
       [AccessSource.DIRECT]: 'acesso direto',
     }
+    const mapLink =
+      data.latitude !== null && data.longitude !== null
+        ? `https://www.google.com/maps?q=${data.latitude},${data.longitude}`
+        : null
     const subject = `Alguém acessou o perfil de ${data.petName} — Elopet`
     const text =
       `Alguém acessou o perfil do seu pet ${data.petName}.\n\n` +
       `Via: ${sourceLabel[data.source]}\n` +
-      `Localização aproximada: ${data.location ?? '—'}\n\n` +
+      `Localização aproximada: ${data.location ?? '—'}\n` +
+      (mapLink ? `Ver no mapa: ${mapLink}\n\n` : '\n') +
       'Se o seu pet está perdido, essa informação pode ajudar na busca.'
     const html =
       `<h1>Alguém acessou o perfil de ${data.petName}</h1>` +
       `<p><strong>Via:</strong> ${sourceLabel[data.source]}</p>` +
       `<p><strong>Localização aproximada:</strong> ${data.location ?? '—'}</p>` +
+      (mapLink ? `<p><a href="${mapLink}">📍 Ver no mapa</a></p>` : '') +
       '<p>Se o seu pet está perdido, essa informação pode ajudar na busca.</p>'
     await this.send(to, subject, html, text)
   }

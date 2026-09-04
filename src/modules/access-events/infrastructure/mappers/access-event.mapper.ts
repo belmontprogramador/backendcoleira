@@ -15,6 +15,8 @@ export class AccessEventMapper {
     device_type: string | null
     ip_hash: string | null
     location_approx: string | null
+    latitude: number | null
+    longitude: number | null
     created_at: Date
   } {
     return {
@@ -25,6 +27,8 @@ export class AccessEventMapper {
       device_type: event.deviceType,
       ip_hash: event.ipHash,
       location_approx: event.locationApprox,
+      latitude: event.latitude,
+      longitude: event.longitude,
       created_at: event.createdAt,
     }
   }
@@ -38,6 +42,8 @@ export class AccessEventMapper {
       deviceType: model.device_type,
       ipHash: model.ip_hash,
       locationApprox: model.location_approx,
+      latitude: model.latitude,
+      longitude: model.longitude,
       createdAt: model.created_at,
     })
   }

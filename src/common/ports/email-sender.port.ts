@@ -19,6 +19,9 @@ export interface ScanAlertEmailData {
   source: AccessSource
   /** Localização aproximada de quem acessou (IP→geo, pode ser null). */
   location: string | null
+  /** Coordenadas GPS reportadas pelo navegador (null = permissão negada). */
+  latitude: number | null
+  longitude: number | null
 }
 
 export interface EmailSenderPort {

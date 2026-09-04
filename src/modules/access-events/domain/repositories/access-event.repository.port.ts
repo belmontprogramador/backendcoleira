@@ -6,6 +6,13 @@ import type { AccessEvent } from '../entities/access-event.entity'
  */
 export interface AccessEventRepositoryPort {
   create(event: AccessEvent): Promise<void>
+  findById(id: string): Promise<AccessEvent | null>
+  /** Backfill das coordenadas GPS reportadas pelo navegador do visitante. */
+  updateLocation(
+    id: string,
+    latitude: number,
+    longitude: number,
+  ): Promise<void>
   listByPet(petId: string): Promise<AccessEvent[]>
 }
 

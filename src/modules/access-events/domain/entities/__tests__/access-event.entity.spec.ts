@@ -28,6 +28,8 @@ describe('AccessEvent (entity)', () => {
     expect(ev.deviceType).toBeNull()
     expect(ev.ipHash).toBeNull()
     expect(ev.locationApprox).toBeNull()
+    expect(ev.latitude).toBeNull()
+    expect(ev.longitude).toBeNull()
   })
 
   it('reconstitui a partir de dados persistidos preservando createdAt', () => {
@@ -40,6 +42,8 @@ describe('AccessEvent (entity)', () => {
       deviceType: 'iPhone',
       ipHash: 'abc123',
       locationApprox: null,
+      latitude: -22.9068,
+      longitude: -43.1729,
       createdAt,
     })
 
@@ -47,6 +51,20 @@ describe('AccessEvent (entity)', () => {
     expect(ev.source).toBe(AccessSource.QR)
     expect(ev.deviceType).toBe('iPhone')
     expect(ev.ipHash).toBe('abc123')
+    expect(ev.latitude).toBe(-22.9068)
+    expect(ev.longitude).toBe(-43.1729)
     expect(ev.createdAt).toEqual(createdAt)
+  })
+
+  it('carrega coordenadas GPS quando presentes na criação', () => {
+    const ev = AccessEvent.create({
+      id: 'ev-4',
+      source: AccessSource.NFC,
+      latitude: -23.5505,
+      longitude: -46.6333,
+    })
+
+    expect(ev.latitude).toBe(-23.5505)
+    expect(ev.longitude).toBe(-46.6333)
   })
 })

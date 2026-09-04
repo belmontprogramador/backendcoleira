@@ -63,8 +63,12 @@ export class LogEmailSender implements EmailSenderPort {
   }
 
   sendScanAlertEmail(to: string, data: ScanAlertEmailData): Promise<void> {
+    const coords =
+      data.latitude !== null && data.longitude !== null
+        ? `${data.latitude},${data.longitude}`
+        : '—'
     this.logger.log(
-      `[alerta de acesso] para=${to} pet=${data.petName} via=${data.source} localização=${data.location ?? '—'}`,
+      `[alerta de acesso] para=${to} pet=${data.petName} via=${data.source} localização=${data.location ?? '—'} coords=${coords}`,
     )
     return Promise.resolve()
   }

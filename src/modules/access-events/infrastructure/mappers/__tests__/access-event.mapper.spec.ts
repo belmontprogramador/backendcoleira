@@ -23,6 +23,8 @@ describe('AccessEventMapper', () => {
       device_type: null,
       ip_hash: 'hash',
       location_approx: null,
+      latitude: null,
+      longitude: null,
       created_at: ev.createdAt,
     })
   })
@@ -36,6 +38,8 @@ describe('AccessEventMapper', () => {
       device_type: null,
       ip_hash: null,
       location_approx: null,
+      latitude: -22.9068,
+      longitude: -43.1729,
       created_at: new Date('2026-01-01T00:00:00.000Z'),
     } as unknown as AccessEventModel
 
@@ -44,6 +48,8 @@ describe('AccessEventMapper', () => {
     expect(ev.id).toBe('ev-1')
     expect(ev.petId).toBe('pet-1')
     expect(ev.source).toBe(AccessSource.QR)
+    expect(ev.latitude).toBe(-22.9068)
+    expect(ev.longitude).toBe(-43.1729)
     expect(ev.createdAt).toEqual(new Date('2026-01-01T00:00:00.000Z'))
   })
 })

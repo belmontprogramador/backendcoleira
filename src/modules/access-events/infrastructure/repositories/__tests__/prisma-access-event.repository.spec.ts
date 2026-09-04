@@ -102,6 +102,35 @@ describe('AccessEvent — repositório (integração)', () => {
     expect(found?.device_type).toBe('iPhone')
   })
 
+  it('busca um AccessEvent por id (findById)', async () => {
+    await prisma.accessEvent.create({
+      data: { id: 'ev-find', source: 'DIRECT' },
+    })
+
+    const found = await repo.findById('ev-find')
+
+    expect(found?.id).toBe('ev-find')
+    expect(found?.source).toBe(AccessSource.DIRECT)
+  })
+
+  it('retorna null no findById quando o evento não existe', async () => {
+    await expect(repo.findById('ev-missing')).resolves.toBeNull()
+  })
+
+  it('atualiza as coordenadas GPS de um AccessEvent (updateLocation)', async () => {
+    await prisma.accessEvent.create({
+      data: { id: 'ev-loc', source: 'DIRECT' },
+    })
+
+    await repo.updateLocation('ev-loc', -22.9068, -43.1729)
+
+    const found = await prisma.accessEvent.findUnique({
+      where: { id: 'ev-loc' },
+    })
+    expect(found?.latitude).toBe(-22.9068)
+    expect(found?.longitude).toBe(-43.1729)
+  })
+
   it('lista eventos de um pet em ordem desc de criação', async () => {
     await prisma.user.create({
       data: {
