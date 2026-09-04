@@ -75,6 +75,17 @@ describe('EvolutionApiClient', () => {
       )
       expect(result).toEqual({ pairingCode: 'ABC123', base64: 'iVBOR', count: 1 })
     })
+
+    it('normaliza base64 data-URI para base64 cru', async () => {
+      fetchMock.mockResolvedValue(
+        jsonResponse({ base64: 'data:image/png;base64,iVBORw0KGgo' }),
+      )
+      const client = new EvolutionApiClient(baseUrl, apiKey)
+
+      const result = await client.connect('elopet')
+
+      expect(result).toEqual({ base64: 'iVBORw0KGgo' })
+    })
   })
 
   describe('connectionState', () => {

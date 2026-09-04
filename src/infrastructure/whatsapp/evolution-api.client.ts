@@ -34,6 +34,18 @@ export class EvolutionNotConfiguredError extends EvolutionApiError {
   }
 }
 
+/**
+ * Normaliza o `base64` do QR para base64 cru (sem o prefixo data-URI).
+ * Alguns builds da Evolution retornam `data:image/png;base64,...`; o front
+ * (página Administração) já prefixa `data:image/png;base64,` por conta própria.
+ */
+export function normalizeQr(qr: EvolutionQrResult): EvolutionQrResult {
+  if (!qr.base64 || !qr.base64.startsWith('data:')) {
+    return qr
+  }
+  return { ...qr, base64: qr.base64.replace(/^data:[^;]+;base64,/i, '') }
+}
+
 interface ConnectionStateResponse {
   instance?: {
     state?: string
@@ -78,9 +90,11 @@ export class EvolutionApiClient {
   }
 
   async connect(instanceName: string): Promise<EvolutionQrResult> {
-    return this.request<EvolutionQrResult>(`/instance/connect/${instanceName}`, {
-      method: 'GET',
-    })
+    const res = await this.request<EvolutionQrResult>(
+      `/instance/connect/${instanceName}`,
+      { method: 'GET' },
+    )
+    return normalizeQr(res)
   }
 
   async connectionState(
