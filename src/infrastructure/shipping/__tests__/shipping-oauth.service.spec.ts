@@ -8,6 +8,7 @@ describe('ShippingOAuthService', () => {
   const tokenStore = {
     save: jest.fn().mockResolvedValue(undefined),
     get: jest.fn(),
+    delete: jest.fn().mockResolvedValue(undefined),
   }
 
   const service = new ShippingOAuthService(
@@ -43,5 +44,22 @@ describe('ShippingOAuthService', () => {
         refreshToken: 'rt-1',
       }),
     )
+  })
+
+  it('isConnected reflete a presença da credencial', async () => {
+    tokenStore.get.mockResolvedValue({
+      accessToken: 'a',
+      refreshToken: 'r',
+      expiresAt: new Date(),
+    })
+    await expect(service.isConnected()).resolves.toBe(true)
+
+    tokenStore.get.mockResolvedValue(null)
+    await expect(service.isConnected()).resolves.toBe(false)
+  })
+
+  it('disconnect apaga a credencial', async () => {
+    await service.disconnect()
+    expect(tokenStore.delete).toHaveBeenCalled()
   })
 })

@@ -29,6 +29,7 @@ export const envSchema = z.object({
   IP_HASH_SALT: z.string().min(32),
   CORS_ORIGINS: z.string().optional(),
   FRONTEND_URL: z.string().url().optional(),
+  FRONT_ADMIN_URL: z.string().url().optional(),
   PUBLIC_BASE_URL: z.string().url().optional(),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().positive().optional(),

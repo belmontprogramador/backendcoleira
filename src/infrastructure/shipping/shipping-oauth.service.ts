@@ -30,4 +30,13 @@ export class ShippingOAuthService {
       expiresAt: new Date(Date.now() + (tokens.expires_in ?? 2592000) * 1000),
     })
   }
+
+  async isConnected(): Promise<boolean> {
+    const credential = await this.tokenStore.get()
+    return credential !== null
+  }
+
+  async disconnect(): Promise<void> {
+    await this.tokenStore.delete()
+  }
 }

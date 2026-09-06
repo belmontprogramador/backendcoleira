@@ -12,6 +12,7 @@ export interface StoredShippingCredential {
 export interface ShippingTokenStorePort {
   get(): Promise<StoredShippingCredential | null>
   save(credential: StoredShippingCredential): Promise<void>
+  delete(): Promise<void>
 }
 
 export const SHIPPING_TOKEN_STORE_PORT = Symbol('SHIPPING_TOKEN_STORE_PORT')

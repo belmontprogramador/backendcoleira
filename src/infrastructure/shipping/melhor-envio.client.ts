@@ -1,5 +1,20 @@
 import { Logger } from '@nestjs/common'
 
+/**
+ * Scopes (permissões) solicitados na autorização OAuth — espaço-separados.
+ * São as permissões mínimas para o pipeline completo de frete/despacho usado
+ * pelo Elopet (cotação, rastreio, carrinho, checkout, geração e impressão).
+ * Sem o `scope`, o token nasce sem permissão e a API responde 403.
+ */
+const ME_SHIPPING_SCOPES = [
+  'shipping-calculate',
+  'shipping-tracking',
+  'cart-write',
+  'shipping-checkout',
+  'shipping-generate',
+  'shipping-print',
+].join(' ')
+
 export class MelhorEnvioApiError extends Error {
   readonly status?: number
 
@@ -199,6 +214,7 @@ export class MelhorEnvioClient {
       client_id: this.clientId,
       redirect_uri: this.redirectUri,
       response_type: 'code',
+      scope: ME_SHIPPING_SCOPES,
     })
     if (state) {
       params.set('state', state)

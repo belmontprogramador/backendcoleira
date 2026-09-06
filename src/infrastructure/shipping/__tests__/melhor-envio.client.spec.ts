@@ -47,6 +47,9 @@ describe('MelhorEnvioClient', () => {
       expect(url).toContain('client_id=client-id')
       expect(url).toContain('redirect_uri=https%3A%2F%2Felopet.online%2Fcallback')
       expect(url).toContain('response_type=code')
+      expect(url).toContain(
+        'scope=shipping-calculate+shipping-tracking+cart-write+shipping-checkout+shipping-generate+shipping-print',
+      )
       expect(url).toContain('state=st-1')
     })
 

@@ -78,4 +78,18 @@ describe('Shipping — token store (integração)', () => {
     expect(got?.refreshToken).toBe('new-r')
     expect(await prisma.shippingCredential.count()).toBe(1)
   })
+
+  it('delete apaga a credencial', async () => {
+    await store.save({
+      accessToken: 'at',
+      refreshToken: 'rt',
+      expiresAt: new Date('2026-01-01T00:00:00Z'),
+    })
+    await expect(store.get()).resolves.not.toBeNull()
+
+    await store.delete()
+
+    await expect(store.get()).resolves.toBeNull()
+    expect(await prisma.shippingCredential.count()).toBe(0)
+  })
 })

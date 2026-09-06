@@ -54,4 +54,10 @@ export class PrismaShippingTokenStore implements ShippingTokenStorePort {
       },
     })
   }
+
+  async delete(): Promise<void> {
+    await this.prisma.shippingCredential.deleteMany({
+      where: { id: SHIPPING_CREDENTIAL_ID },
+    })
+  }
 }
