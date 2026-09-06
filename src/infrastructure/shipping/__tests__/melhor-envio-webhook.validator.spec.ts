@@ -5,27 +5,28 @@ import { MelhorEnvioWebhookValidator } from '../melhor-envio-webhook.validator'
 const SECRET = 'segredo-webhook'
 
 function sign(body: string): string {
-  return createHmac('sha256', SECRET).update(body).digest('hex')
+  // A Melhor Envio assina em base64 (não hex).
+  return createHmac('sha256', SECRET).update(body).digest('base64')
 }
 
 function makeConfig(secret?: string): ConfigService {
   return {
     get: (key: string) =>
-      key === 'MELHOR_ENVIO_WEBHOOK_SECRET' ? secret : undefined,
+      key === 'MELHOR_ENVIO_CLIENT_SECRET' ? secret : undefined,
   } as unknown as ConfigService
 }
 
 describe('MelhorEnvioWebhookValidator', () => {
   const body = JSON.stringify({ event: 'order.delivered', data: {} })
 
-  it('valida assinatura correta', () => {
+  it('valida assinatura correta (base64)', () => {
     const validator = new MelhorEnvioWebhookValidator(makeConfig(SECRET))
     expect(validator.validate(body, sign(body))).toBe(true)
   })
 
   it('rejeita assinatura incorreta', () => {
     const validator = new MelhorEnvioWebhookValidator(makeConfig(SECRET))
-    expect(validator.validate(body, 'deadbeef')).toBe(false)
+    expect(validator.validate(body, 'c2lnbmF0dXJlLWludmFsaWRh')).toBe(false)
   })
 
   it('rejeita corpo adulterado (assinatura de outro body)', () => {

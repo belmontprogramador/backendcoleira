@@ -6,13 +6,14 @@ import type { ShippingWebhookValidatorPort } from './shipping-webhook-validator.
 /**
  * Implementação do `ShippingWebhookValidatorPort` (webhook Melhor Envio).
  *
- * O header `X-ME-Signature` contém `HMAC-SHA256(body_cru, app_secret)` em hex.
- * A validação recalcula o HMAC do corpo cru (string JSON, exata como chegou) e
- * compara (timing-safe) com a assinatura.
+ * O header `X-ME-Signature` contém `HMAC-SHA256(body_cru, app_secret)` em
+ * **base64** — a ME assina com o próprio secret do aplicativo (que é o
+ * `MELHOR_ENVIO_CLIENT_SECRET`, não um segredo separado de webhook).
  *
- * - Fail-closed: sem segredo configurado, rejeita sempre.
- * - A assinatura esperada é hex; se a ME passar base64, trocar `.digest('hex')`
- *   por `.digest('base64')`.
+ * A validação recalcula o HMAC do corpo cru (string JSON, exata como chegou) e
+ * compara (timing-safe) com a assinatura recebida.
+ *
+ * - Fail-closed: sem `MELHOR_ENVIO_CLIENT_SECRET`, rejeita sempre.
  */
 @Injectable()
 export class MelhorEnvioWebhookValidator
@@ -23,10 +24,10 @@ export class MelhorEnvioWebhookValidator
   constructor(private readonly config: ConfigService) {}
 
   validate(body: string, signature: string): boolean {
-    const secret = this.config.get<string>('MELHOR_ENVIO_WEBHOOK_SECRET')
+    const secret = this.config.get<string>('MELHOR_ENVIO_CLIENT_SECRET')
     if (!secret || secret.length === 0) {
       this.logger.error(
-        'MELHOR_ENVIO_WEBHOOK_SECRET não configurado — rejeitando webhook (fail-closed)',
+        'MELHOR_ENVIO_CLIENT_SECRET não configurado — rejeitando webhook (fail-closed)',
       )
       return false
     }
@@ -36,7 +37,8 @@ export class MelhorEnvioWebhookValidator
       return false
     }
 
-    const computed = createHmac('sha256', secret).update(body).digest('hex')
+    // A Melhor Envio envia a assinatura em base64 (não hex).
+    const computed = createHmac('sha256', secret).update(body).digest('base64')
     const a = Buffer.from(computed, 'utf8')
     const b = Buffer.from(signature, 'utf8')
     if (a.length !== b.length) {

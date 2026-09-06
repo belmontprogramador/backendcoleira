@@ -1,7 +1,7 @@
 /**
  * Porta de validação de assinatura de webhook da Melhor Envio.
- * A ME envia o header `X-ME-Signature` = HMAC-SHA256 do corpo cru (JSON)
- * usando o `MELHOR_ENVIO_WEBHOOK_SECRET` da app.
+ * A ME envia o header `X-ME-Signature` = HMAC-SHA256 (base64) do corpo cru
+ * (JSON) usando o secret do aplicativo (`MELHOR_ENVIO_CLIENT_SECRET`).
  */
 export interface ShippingWebhookValidatorPort {
   validate(body: string, signature: string): boolean

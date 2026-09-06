@@ -45,7 +45,6 @@ export const envSchema = z.object({
   MELHOR_ENVIO_CLIENT_SECRET: z.string().optional(),
   MELHOR_ENVIO_REDIRECT_URI: z.string().optional(),
   MELHOR_ENVIO_BASE_URL: z.string().optional(),
-  MELHOR_ENVIO_WEBHOOK_SECRET: z.string().optional(),
   MELHOR_ENVIO_FROM_POSTAL_CODE: z.string().optional(),
   SHIPPING_TOKEN_ENC_KEY: z
     .string()
