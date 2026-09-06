@@ -15,6 +15,7 @@ import { DatabaseModule } from './infrastructure/database/database.module'
 import { AuditModule } from './infrastructure/audit/audit.module'
 import { EmailModule } from './infrastructure/email/email.module'
 import { WhatsAppModule } from './infrastructure/whatsapp/whatsapp.module'
+import { ShippingModule } from './infrastructure/shipping/shipping.module'
 import { GeolocationModule } from './infrastructure/geolocation/geolocation.module'
 import { TemporaryTokenStoreModule } from './infrastructure/auth/temporary-token-store.module'
 import { RefreshTokenStoreModule } from './infrastructure/auth/refresh-token-store.module'
@@ -34,6 +35,8 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
 import { PetMedicalModule } from './modules/pet-medical/pet-medical.module'
 import { PetContactsModule } from './modules/pet-contacts/pet-contacts.module'
 import { DashboardModule } from './modules/dashboard/dashboard.module'
+import { ProductsModule } from './modules/products/products.module'
+import { OrdersModule } from './modules/orders/orders.module'
 
 @Module({
   imports: [
@@ -68,6 +71,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module'
     AuditModule,
     EmailModule,
     WhatsAppModule,
+    ShippingModule,
     GeolocationModule,
     TemporaryTokenStoreModule,
     RefreshTokenStoreModule,
@@ -85,6 +89,8 @@ import { DashboardModule } from './modules/dashboard/dashboard.module'
     PetMedicalModule,
     PetContactsModule,
     DashboardModule,
+    ProductsModule,
+    OrdersModule,
     PublicProfileModule,
     PublicProfileInvalidationModule,
   ],

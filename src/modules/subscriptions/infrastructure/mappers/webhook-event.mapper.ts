@@ -1,5 +1,5 @@
 import { WebhookEvent } from '../../domain/entities/webhook-event.entity'
-import type { PaymentProvider } from '../../domain/value-objects/payment-provider.vo'
+import type { PaymentProvider } from '../../../../common/value-objects/payment-provider.vo'
 import type { WebhookStatus } from '../../domain/value-objects/webhook-status.vo'
 import type { WebhookEventModel } from '../../../../generated/prisma/models/WebhookEvent'
 import type { Prisma } from '../../../../generated/prisma/client'

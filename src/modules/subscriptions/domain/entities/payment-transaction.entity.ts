@@ -1,7 +1,7 @@
 import type { Price } from '../../../../common/value-objects/price.vo'
-import type { PaymentProvider } from '../value-objects/payment-provider.vo'
-import type { PaymentMethod } from '../value-objects/payment-method.vo'
-import type { PaymentStatus } from '../value-objects/payment-status.vo'
+import type { PaymentProvider } from '../../../../common/value-objects/payment-provider.vo'
+import type { PaymentMethod } from '../../../../common/value-objects/payment-method.vo'
+import type { PaymentStatus } from '../../../../common/value-objects/payment-status.vo'
 
 export interface CreatePaymentTransactionProps {
   id: string

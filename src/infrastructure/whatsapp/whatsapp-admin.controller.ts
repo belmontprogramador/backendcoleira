@@ -4,6 +4,7 @@ import {
   Post,
   ServiceUnavailableException,
 } from '@nestjs/common'
+import { SkipThrottle } from '@nestjs/throttler'
 import { Roles } from '../../common/decorators/roles.decorator'
 import { WhatsAppConnectionService } from './whatsapp-connection.service'
 
@@ -15,6 +16,7 @@ import { WhatsAppConnectionService } from './whatsapp-connection.service'
  */
 @Controller('admin/whatsapp')
 @Roles('SUPER_ADMIN')
+@SkipThrottle()
 export class WhatsAppAdminController {
   constructor(private readonly connection: WhatsAppConnectionService) {}
 

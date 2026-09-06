@@ -1,9 +1,9 @@
 import { PaymentTransaction } from '../../domain/entities/payment-transaction.entity'
 import { Price } from '../../../../common/value-objects/price.vo'
 import type { PriceCurrency } from '../../../../common/value-objects/price.vo'
-import type { PaymentProvider } from '../../domain/value-objects/payment-provider.vo'
-import type { PaymentMethod } from '../../domain/value-objects/payment-method.vo'
-import type { PaymentStatus } from '../../domain/value-objects/payment-status.vo'
+import type { PaymentProvider } from '../../../../common/value-objects/payment-provider.vo'
+import type { PaymentMethod } from '../../../../common/value-objects/payment-method.vo'
+import type { PaymentStatus } from '../../../../common/value-objects/payment-status.vo'
 import type { PaymentTransactionModel } from '../../../../generated/prisma/models/PaymentTransaction'
 
 /**

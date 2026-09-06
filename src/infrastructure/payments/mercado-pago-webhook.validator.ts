@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import type { PaymentWebhookValidatorPort } from '../../domain/gateways/payment-webhook-validator.port'
+import type { PaymentWebhookValidatorPort } from '../../common/ports/payment-webhook-validator.port'
 
 /**
  * Implementação do `PaymentWebhookValidatorPort` (HMAC-SHA256, formato atual do MP).

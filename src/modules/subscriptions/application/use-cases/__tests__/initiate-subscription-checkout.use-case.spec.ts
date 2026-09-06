@@ -2,7 +2,7 @@ import { InitiateSubscriptionCheckoutUseCase } from '../initiate-subscription-ch
 import type { PlanRepositoryPort } from '../../../../plans/domain/repositories/plan.repository.port'
 import type { PaymentTransactionRepositoryPort } from '../../../domain/repositories/payment-transaction.repository.port'
 import type { SubscriptionRepositoryPort } from '../../../domain/repositories/subscription.repository.port'
-import type { PaymentGatewayPort } from '../../../domain/gateways/payment-gateway.port'
+import type { PaymentGatewayPort } from '../../../../../common/ports/payment-gateway.port'
 import { PlanNotFoundError } from '../../../../plans/application/errors'
 import { FreePlanCheckoutError } from '../../errors'
 import { ActiveSubscriptionExistsError } from '../../errors'

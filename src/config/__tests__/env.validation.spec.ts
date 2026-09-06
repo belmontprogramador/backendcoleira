@@ -14,6 +14,7 @@ function validEnv(
     JWT_ACCESS_SECRET: 'access-secret-with-enough-length',
     JWT_REFRESH_SECRET: 'refresh-secret-with-enough-length',
     ACTIVATION_CODE_ENC_KEY: VALID_ENC_KEY,
+    SHIPPING_TOKEN_ENC_KEY: VALID_ENC_KEY,
     IP_HASH_SALT: VALID_IP_HASH_SALT,
     ...overrides,
   }

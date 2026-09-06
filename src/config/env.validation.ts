@@ -41,6 +41,18 @@ export const envSchema = z.object({
   EVOLUTION_API_URL: z.string().optional(),
   EVOLUTION_API_KEY: z.string().optional(),
   EVOLUTION_INSTANCE_NAME: z.string().optional(),
+  MELHOR_ENVIO_CLIENT_ID: z.string().optional(),
+  MELHOR_ENVIO_CLIENT_SECRET: z.string().optional(),
+  MELHOR_ENVIO_REDIRECT_URI: z.string().optional(),
+  MELHOR_ENVIO_BASE_URL: z.string().optional(),
+  MELHOR_ENVIO_WEBHOOK_SECRET: z.string().optional(),
+  MELHOR_ENVIO_FROM_POSTAL_CODE: z.string().optional(),
+  SHIPPING_TOKEN_ENC_KEY: z
+    .string()
+    .regex(
+      /^[0-9a-fA-F]{64}$/,
+      'SHIPPING_TOKEN_ENC_KEY deve ser 32 bytes em hexadecimal (64 caracteres)',
+    ),
 })
 
 export type Env = z.infer<typeof envSchema>

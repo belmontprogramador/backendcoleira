@@ -1,5 +1,5 @@
 import type { SubscriptionStatus } from '../value-objects/subscription-status.vo'
-import type { PaymentProvider } from '../value-objects/payment-provider.vo'
+import type { PaymentProvider } from '../../../../common/value-objects/payment-provider.vo'
 import type { SubscriptionPeriod } from '../value-objects/subscription-period.vo'
 
 export interface CreateSubscriptionProps {

@@ -1,4 +1,4 @@
-import type { PaymentProvider } from '../value-objects/payment-provider.vo'
+import type { PaymentProvider } from '../../../../common/value-objects/payment-provider.vo'
 import type { WebhookStatus } from '../value-objects/webhook-status.vo'
 
 export interface CreateWebhookEventProps {

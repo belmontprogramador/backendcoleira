@@ -1,15 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { randomUUID } from 'node:crypto'
-import { PaymentGatewayError } from '../../application/errors'
+import { PaymentGatewayError } from '../../common/errors/payment-gateway.error'
 import type {
   CreatePaymentInput,
   CreatePaymentResult,
   GetPaymentResult,
   PaymentGatewayPort,
-} from '../../domain/gateways/payment-gateway.port'
-import type { PaymentMethod } from '../../domain/value-objects/payment-method.vo'
-import type { PaymentStatus } from '../../domain/value-objects/payment-status.vo'
+} from '../../common/ports/payment-gateway.port'
+import type { PaymentMethod } from '../../common/value-objects/payment-method.vo'
+import type { PaymentStatus } from '../../common/value-objects/payment-status.vo'
 
 const MERCADO_PAGO_API = 'https://api.mercadopago.com'
 

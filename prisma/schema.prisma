@@ -21,17 +21,17 @@ datasource db {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model User {
-  id               String     @id @default(cuid())
-  name             String
-  email            String     @unique
-  password_hash    String
-  phone            String?
-  status           UserStatus @default(PENDING_VERIFICATION)
+  id                String     @id @default(cuid())
+  name              String
+  email             String     @unique
+  password_hash     String
+  phone             String?
+  status            UserStatus @default(PENDING_VERIFICATION)
   email_verified_at DateTime?
-  last_login_at    DateTime?
-  created_at       DateTime   @default(now())
-  updated_at       DateTime   @updatedAt
-  deleted_at       DateTime?
+  last_login_at     DateTime?
+  created_at        DateTime   @default(now())
+  updated_at        DateTime   @updatedAt
+  deleted_at        DateTime?
 
   roles      UserRole[]
   audit_logs AuditLog[]
@@ -41,6 +41,7 @@ model User {
 
   subscriptions        Subscription[]
   payment_transactions PaymentTransaction[]
+  orders               Order[]
 
   @@index([status])
   @@index([deleted_at])
@@ -71,8 +72,8 @@ model Role {
 model Permission {
   id          String   @id @default(cuid())
   code        String   @unique // user:read, tag:record, batch:manage, ...
-  resource    String   // users, pets, tags, batches, inventory, orders, ...
-  action      String   // read, write, delete, record, manage, ...
+  resource    String // users, pets, tags, batches, inventory, orders, ...
+  action      String // read, write, delete, record, manage, ...
   description String?
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
@@ -148,8 +149,8 @@ model Pet {
   updated_at  DateTime  @updatedAt
   deleted_at  DateTime?
 
-  owner   User        @relation(fields: [owner_id], references: [id], onDelete: Restrict)
-  privacy PetPrivacy?
+  owner    User        @relation(fields: [owner_id], references: [id], onDelete: Restrict)
+  privacy  PetPrivacy?
   nfc_tags NfcTag[]
 
   access_events    AccessEvent[]
@@ -165,17 +166,17 @@ model Pet {
 }
 
 model PetPrivacy {
-  id                 String   @id @default(cuid())
-  pet_id             String   @unique
-  show_phone         Boolean  @default(true)
-  show_email         Boolean  @default(true)
-  show_city          Boolean  @default(true)
-  show_medical       Boolean  @default(false)
-  show_veterinarian  Boolean  @default(false)
-  show_behavior      Boolean  @default(false)
-  show_contacts      Boolean  @default(false)
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
+  id                String   @id @default(cuid())
+  pet_id            String   @unique
+  show_phone        Boolean  @default(true)
+  show_email        Boolean  @default(true)
+  show_city         Boolean  @default(true)
+  show_medical      Boolean  @default(false)
+  show_veterinarian Boolean  @default(false)
+  show_behavior     Boolean  @default(false)
+  show_contacts     Boolean  @default(false)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
 
   pet Pet @relation(fields: [pet_id], references: [id], onDelete: Cascade)
 
@@ -193,19 +194,19 @@ enum PetSex {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model NfcTag {
-  id                  String    @id @default(cuid())
-  public_id           String    @unique
-  uid                 String?   @unique
+  id                        String    @id @default(cuid())
+  public_id                 String    @unique
+  uid                       String?   @unique
   activation_code_encrypted String
-  status              TagStatus @default(CREATED)
-  batch_id            String?
-  owner_id            String?
-  pet_id              String?
-  activated_at        DateTime?
-  deactivated_at      DateTime?
-  reset_at            DateTime?
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @updatedAt
+  status                    TagStatus @default(CREATED)
+  batch_id                  String?
+  owner_id                  String?
+  pet_id                    String?
+  activated_at              DateTime?
+  deactivated_at            DateTime?
+  reset_at                  DateTime?
+  created_at                DateTime  @default(now())
+  updated_at                DateTime  @updatedAt
 
   batch Batch? @relation(fields: [batch_id], references: [id], onDelete: SetNull)
   owner User?  @relation(fields: [owner_id], references: [id], onDelete: SetNull)
@@ -306,13 +307,13 @@ model AccessEvent {
 }
 
 model ContactMessage {
-  id           String       @id @default(cuid())
-  pet_id       String
-  nfc_tag_id   String?
-  sender_name  String?
-  sender_phone String?
-  sender_email String?
-  message      String
+  id              String       @id @default(cuid())
+  pet_id          String
+  nfc_tag_id      String?
+  sender_name     String?
+  sender_phone    String?
+  sender_email    String?
+  message         String
   source          AccessSource @default(DIRECT)
   ip_hash         String?
   user_agent      String?
@@ -449,7 +450,7 @@ model Subscription {
 }
 
 model PaymentTransaction {
-  id                  String        @id @default(cuid())
+  id                  String          @id @default(cuid())
   subscription_id     String?
   user_id             String
   plan_id             String?
@@ -457,10 +458,10 @@ model PaymentTransaction {
   provider_payment_id String
   payment_method      PaymentMethod
   amount_cents        Int
-  currency            String        @default("BRL")
-  status              PaymentStatus @default(PENDING)
-  created_at          DateTime      @default(now())
-  updated_at          DateTime      @updatedAt
+  currency            String          @default("BRL")
+  status              PaymentStatus   @default(PENDING)
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
 
   subscription Subscription? @relation(fields: [subscription_id], references: [id], onDelete: SetNull)
   user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
@@ -475,16 +476,16 @@ model PaymentTransaction {
 }
 
 model WebhookEvent {
-  id           String        @id @default(cuid())
+  id           String          @id @default(cuid())
   provider     PaymentProvider
   event_id     String
   event_type   String
   payload      Json
-  status       WebhookStatus @default(RECEIVED)
+  status       WebhookStatus   @default(RECEIVED)
   processed_at DateTime?
   error        String?
-  received_at  DateTime      @default(now())
-  created_at   DateTime      @default(now())
+  received_at  DateTime        @default(now())
+  created_at   DateTime        @default(now())
 
   @@unique([provider, event_id])
   @@index([status])
@@ -525,4 +526,114 @@ model PetContact {
 
   @@index([pet_id])
   @@map("pet_contacts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FASE 9 — Venda de Pingente (checkout + Melhor Envio)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Product {
+  id          String   @id @default(cuid())
+  sku         String   @unique // "pingente"
+  name        String
+  description String?
+  price_cents Int
+  active      Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  orders Order[]
+
+  @@map("products")
+}
+
+// Linha única — credencial OAuth da Melhor Envio (single-account).
+// Os tokens ficam cifrados (AES-256-GCM) pelo PrismaShippingTokenStore.
+model ShippingCredential {
+  id            String   @id
+  access_token  String
+  refresh_token String
+  expires_at    DateTime
+  updated_at    DateTime @updatedAt
+
+  @@map("shipping_credentials")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Venda do pingente (Melhor Envio) — Order / Shipment
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum ShipmentStatus {
+  PENDING
+  POSTED
+  DELIVERED
+  CANCELLED
+}
+
+// Venda do pingente — desacoplada da ativação do NfcTag.
+// `total_price` é derivado no domínio (unit_price * quantity + freight_price),
+// por isso não é persistido.
+model Order {
+  id                 String        @id @default(cuid())
+  buyer_id           String
+  product_id         String
+  unit_price         Int
+  quantity           Int           @default(1)
+  freight_price      Int
+  status             OrderStatus   @default(PENDING)
+  payment_id         String?       @unique
+  payment_method     PaymentMethod
+  ship_postal_code   String
+  ship_street        String
+  ship_number        String
+  ship_city          String
+  ship_state         String
+  ship_name          String
+  ship_phone         String
+  freight_service_id Int?
+  paid_at            DateTime?
+  shipped_at         DateTime?
+  delivered_at       DateTime?
+  cancelled_at       DateTime?
+  refunded_at        DateTime?
+  created_at         DateTime      @default(now())
+  updated_at         DateTime      @updatedAt
+
+  buyer    User      @relation(fields: [buyer_id], references: [id], onDelete: Restrict)
+  product  Product   @relation(fields: [product_id], references: [id], onDelete: Restrict)
+  shipment Shipment?
+
+  @@index([buyer_id])
+  @@index([product_id])
+  @@index([status])
+  @@index([created_at])
+  @@map("orders")
+}
+
+// Envio (etiqueta Melhor Envio) — 1:1 com Order.
+model Shipment {
+  id           String         @id @default(cuid())
+  order_id     String         @unique
+  me_order_id  String         @unique
+  protocol     String
+  service_id   Int
+  status       ShipmentStatus @default(PENDING)
+  tracking     String?
+  tracking_url String?
+  label_url    String?
+  created_at   DateTime       @default(now())
+  updated_at   DateTime       @updatedAt
+
+  order Order @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@map("shipments")
 }

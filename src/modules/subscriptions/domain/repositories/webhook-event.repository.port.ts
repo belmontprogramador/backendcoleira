@@ -1,5 +1,5 @@
 import type { WebhookEvent } from '../entities/webhook-event.entity'
-import type { PaymentProvider } from '../value-objects/payment-provider.vo'
+import type { PaymentProvider } from '../../../../common/value-objects/payment-provider.vo'
 
 /**
  * Porta do repositório de eventos de webhook (idempotência — RNF09).

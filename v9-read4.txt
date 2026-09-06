@@ -1,0 +1,762 @@
+
+
+===== src/infrastructure/shipping/shipping.module.ts =====
+import { Global, Module } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+import { SHIPPING_GATEWAY_PORT } from '../../common/ports/shipping-gateway.port'
+import type {
+  ShippingGatewayPort,
+} from '../../common/ports/shipping-gateway.port'
+import { SHIPPING_TOKEN_CIPHER_PORT } from './shipping-token-cipher.port'
+import { Aes256GcmCipher } from './aes256-gcm-cipher'
+import { SHIPPING_TOKEN_STORE_PORT } from './shipping-token-store.port'
+import type { ShippingTokenStorePort } from './shipping-token-store.port'
+import { PrismaShippingTokenStore } from './prisma-shipping-token.store'
+import { SHIPPING_WEBHOOK_VALIDATOR_PORT } from './shipping-webhook-validator.port'
+import { SHIPPING_ORIGIN_POSTAL_CODE_PORT } from '../../common/ports/shipping-origin.port'
+import { MelhorEnvioWebhookValidator } from './melhor-envio-webhook.validator'
+import { MelhorEnvioClient } from './melhor-envio.client'
+import { MelhorEnvioGateway } from './melhor-envio.gateway'
+import { MockShippingGateway } from './mock-shipping.gateway'
+
+const SHIPPING_USER_AGENT = 'Elopet (contato@elopet.online)'
+
+/**
+ * Módulo de consumo da API Melhor Envio (global).
+ *
+ * Provê o gateway de frete atrás da porta `SHIPPING_GATEWAY_PORT` — real
+ * (`MelhorEnvioGateway`, com refresh-on-401) quando `MELHOR_ENVIO_BASE_URL`
+ * estiver presente; senão `MockShippingGateway`. Também provê o token store
+ * OAuth (`SHIPPING_TOKEN_STORE_PORT`), o cifrador de tokens e o validador de
+ * webhook (HMAC).
+ */
+@Global()
+@Module({
+  providers: [
+    {
+      provide: MelhorEnvioClient,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) =>
+        new MelhorEnvioClient({
+          baseUrl: config.get<string>('MELHOR_ENVIO_BASE_URL') ?? '',
+          clientId: config.get<string>('MELHOR_ENVIO_CLIENT_ID') ?? '',
+          clientSecret: config.get<string>('MELHOR_ENVIO_CLIENT_SECRET') ?? '',
+          redirectUri: config.get<string>('MELHOR_ENVIO_REDIRECT_URI') ?? '',
+          userAgent: SHIPPING_USER_AGENT,
+        }),
+    },
+    {
+      provide: SHIPPING_TOKEN_CIPHER_PORT,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) =>
+        new Aes256GcmCipher(config.get<string>('SHIPPING_TOKEN_ENC_KEY') ?? ''),
+    },
+    {
+      provide: SHIPPING_TOKEN_STORE_PORT,
+      useClass: PrismaShippingTokenStore,
+    },
+    {
+      provide: SHIPPING_WEBHOOK_VALIDATOR_PORT,
+      useClass: MelhorEnvioWebhookValidator,
+    },
+    {
+      provide: SHIPPING_ORIGIN_POSTAL_CODE_PORT,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) =>
+        config.get<string>('MELHOR_ENVIO_FROM_POSTAL_CODE') ?? '01310100',
+    },
+    {
+      provide: SHIPPING_GATEWAY_PORT,
+      inject: [MelhorEnvioClient, SHIPPING_TOKEN_STORE_PORT],
+      useFactory: (
+        client: MelhorEnvioClient,
+        tokenStore: ShippingTokenStorePort,
+      ): ShippingGatewayPort =>
+        client.isConfigured()
+          ? new MelhorEnvioGateway(client, tokenStore)
+          : new MockShippingGateway(),
+    },
+  ],
+  exports: [
+    SHIPPING_GATEWAY_PORT,
+    SHIPPING_TOKEN_STORE_PORT,
+    SHIPPING_WEBHOOK_VALIDATOR_PORT,
+    SHIPPING_ORIGIN_POSTAL_CODE_PORT,
+    MelhorEnvioClient,
+  ],
+})
+export class ShippingModule {}
+
+
+===== src/infrastructure/shipping/shipping-token-store.port.ts =====
+/** Credencial OAuth do Melhor Envio em texto puro (fora do banco). */
+export interface StoredShippingCredential {
+  accessToken: string
+  refreshToken: string
+  expiresAt: Date
+}
+
+/**
+ * Porta de persistência da credencial OAuth do Melhor Envio (conta única).
+ * A implementação Prisma criptografa os tokens em repouso (AES-256-GCM).
+ */
+export interface ShippingTokenStorePort {
+  get(): Promise<StoredShippingCredential | null>
+  save(credential: StoredShippingCredential): Promise<void>
+}
+
+export const SHIPPING_TOKEN_STORE_PORT = Symbol('SHIPPING_TOKEN_STORE_PORT')
+
+
+===== src/infrastructure/shipping/shipping-webhook-validator.port.ts =====
+/**
+ * Porta de validação de assinatura de webhook da Melhor Envio.
+ * A ME envia o header `X-ME-Signature` = HMAC-SHA256 do corpo cru (JSON)
+ * usando o `MELHOR_ENVIO_WEBHOOK_SECRET` da app.
+ */
+export interface ShippingWebhookValidatorPort {
+  validate(body: string, signature: string): boolean
+}
+
+export const SHIPPING_WEBHOOK_VALIDATOR_PORT = Symbol(
+  'SHIPPING_WEBHOOK_VALIDATOR_PORT',
+)
+
+
+===== src/infrastructure/shipping/melhor-envio.client.ts =====
+import { Logger } from '@nestjs/common'
+
+export class MelhorEnvioApiError extends Error {
+  readonly status?: number
+
+  constructor(message: string, status?: number) {
+    super(message)
+    this.name = 'MelhorEnvioApiError'
+    this.status = status
+  }
+}
+
+/** A Melhor Envio não está configurada (base URL / credenciais OAuth ausentes). */
+export class MelhorEnvioNotConfiguredError extends MelhorEnvioApiError {
+  constructor() {
+    super(
+      'Melhor Envio não configurada (MELHOR_ENVIO_BASE_URL / CLIENT_ID / CLIENT_SECRET ausentes)',
+    )
+    this.name = 'MelhorEnvioNotConfiguredError'
+  }
+}
+
+export interface MelhorEnvioClientConfig {
+  baseUrl: string
+  clientId: string
+  clientSecret: string
+  redirectUri: string
+  userAgent: string
+}
+
+/** Resposta bruta de `POST /oauth/token` (snake_case, formato ME). */
+export interface OAuthTokenResponse {
+  access_token: string
+  refresh_token: string
+  token_type: string
+  expires_in: number
+}
+
+/** Payload de `POST /api/v2/me/shipment/calculate` (raw, formato ME). */
+export interface CalculateQuotationInput {
+  from: { postal_code: string }
+  to: { postal_code: string }
+  products?: Array<{
+    id: string
+    width: number
+    height: number
+    length: number
+    weight: number
+    insurance_value: number
+    quantity: number
+  }>
+  volumes?: Array<{
+    width: number
+    height: number
+    length: number
+    weight: number
+    insurance: number
+    quantity?: number
+  }>
+  options?: { receipt?: boolean; own_hand?: boolean }
+  services?: string
+}
+
+/** Oferta de frete retornada por `calculate` (raw, formato ME). */
+export interface Quotation {
+  id: number
+  name: string
+  price: string
+  custom_price: string
+  discount: string
+  currency: string
+  delivery_time: number
+  custom_delivery_time: number
+  company: { id: number; name: string; picture: string }
+}
+
+/** Item de rastreio retornado por `POST /api/v2/me/shipment/tracking`. */
+export interface TrackingInfo {
+  id: string
+  protocol: string
+  status: string
+  tracking: string | null
+  melhorenvio_tracking: string | null
+  created_at: string
+  paid_at: string | null
+  generated_at: string | null
+  posted_at: string | null
+  delivered_at: string | null
+  canceled_at: string | null
+  expired_at: string | null
+}
+
+/** Endereço do remetente/destinatário no carrinho (raw, formato ME). */
+export interface CartAddress {
+  name: string
+  phone: string
+  email: string
+  document?: string
+  postal_code: string
+  address: string
+  city: string
+  state_abbr: string
+}
+
+/** Payload de `POST /api/v2/me/cart` (raw, formato ME). */
+export interface CartInput {
+  service: number
+  from: CartAddress
+  to: CartAddress
+  products?: Array<{
+    id: string
+    width: number
+    height: number
+    length: number
+    weight: number
+    insurance_value: number
+    quantity: number
+  }>
+  volumes?: Array<{
+    width: number
+    height: number
+    length: number
+    weight: number
+    insurance: number
+    quantity?: number
+  }>
+  options?: { receipt?: boolean; own_hand?: boolean; non_commercial?: boolean }
+}
+
+/** Resposta de `POST /api/v2/me/cart` — a etiqueta criada no carrinho. */
+export interface CartResponse {
+  id: string
+  protocol: string
+}
+
+/** Resposta de `POST /api/v2/me/shipment/checkout`. */
+export interface CheckoutResponse {
+  purchase: { id: string; protocol: string; total: number; status: string }
+  orders: Array<{ id: string; protocol: string; status: string }>
+}
+
+/** Resposta de `POST /api/v2/me/shipment/generate`. */
+export interface GenerateResponse {
+  [orderId: string]: { status: boolean; message: string }
+}
+
+/** Resposta de `POST /api/v2/me/shipment/print`. */
+export interface PrintResponse {
+  url: string
+}
+
+/**
+ * Cliente HTTP da Melhor Envio API (logística).
+ *
+ * HTTP puro via `fetch`, OAuth 2.0 (Authorization Code) + endpoints de frete.
+ * Headers obrigatórios em toda request: `Accept`, `Content-Type` e `User-Agent`
+ * (a API rejeita sem `User-Agent`). Este cliente NÃO gerencia token — recebe o
+ * `access_token` por parâmetro; o refresh-on-401 fica no `MelhorEnvioGateway`
+ * (V.6), que usa o `ShippingTokenStorePort` para persistir os tokens.
+ *
+ * Endpoints:
+ * - POST /oauth/token                       (authorization_code | refresh_token)
+ * - POST /api/v2/me/shipment/calculate      (cotação de frete)
+ * - POST /api/v2/me/shipment/tracking       (rastreio)
+ */
+export class MelhorEnvioClient {
+  private readonly logger = new Logger(MelhorEnvioClient.name)
+  private readonly baseUrl: string
+  private readonly clientId: string
+  private readonly clientSecret: string
+  private readonly redirectUri: string
+  private readonly userAgent: string
+
+  constructor(config: MelhorEnvioClientConfig) {
+    this.baseUrl = (config.baseUrl ?? '').trim().replace(/\/+$/, '')
+    this.clientId = (config.clientId ?? '').trim()
+    this.clientSecret = (config.clientSecret ?? '').trim()
+    this.redirectUri = (config.redirectUri ?? '').trim()
+    this.userAgent = (config.userAgent ?? '').trim()
+  }
+
+  isConfigured(): boolean {
+    return (
+      this.baseUrl !== '' &&
+      this.clientId !== '' &&
+      this.clientSecret !== ''
+    )
+  }
+
+  /** Troca o `code` do callback OAuth por access/refresh tokens. */
+  async exchangeAuthorizationCode(code: string): Promise<OAuthTokenResponse> {
+    return this.requestForm<OAuthTokenResponse>('/oauth/token', {
+      grant_type: 'authorization_code',
+      code,
+      client_id: this.clientId,
+      client_secret: this.clientSecret,
+      redirect_uri: this.redirectUri,
+    })
+  }
+
+  /**
+   * Renova o token (obrigatório — access expira em 30 dias, refresh em 45).
+   * A doc da ME indica apenas `grant_type` + `refresh_token` no refresh.
+   */
+  async refreshAccessToken(
+    refreshToken: string,
+  ): Promise<OAuthTokenResponse> {
+    return this.requestForm<OAuthTokenResponse>('/oauth/token', {
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+    })
+  }
+
+  /** Cotação de frete (produtos/volumes + CEP origem/destino). */
+  async calculateShipping(
+    input: CalculateQuotationInput,
+    accessToken: string,
+  ): Promise<Quotation[]> {
+    return this.requestJson<Quotation[]>(
+      '/api/v2/me/shipment/calculate',
+      input,
+      accessToken,
+    )
+  }
+
+  /** Rastreio de etiquetas por `id`/`protocol`. */
+  async trackOrders(
+    orders: string[],
+    accessToken: string,
+  ): Promise<Record<string, TrackingInfo>> {
+    return this.requestJson<Record<string, TrackingInfo>>(
+      '/api/v2/me/shipment/tracking',
+      { orders },
+      accessToken,
+    )
+  }
+
+  /** Insere a etiqueta no carrinho (passo 1 do pipeline de despacho). */
+  async addToCart(
+    input: CartInput,
+    accessToken: string,
+  ): Promise<CartResponse> {
+    return this.requestJson<CartResponse>('/api/v2/me/cart', input, accessToken)
+  }
+
+  /** Paga a etiqueta com o saldo da carteira (passo 2). */
+  async checkout(
+    orderIds: string[],
+    accessToken: string,
+  ): Promise<CheckoutResponse> {
+    return this.requestJson<CheckoutResponse>(
+      '/api/v2/me/shipment/checkout',
+      { orders: orderIds },
+      accessToken,
+    )
+  }
+
+  /** Gera a etiqueta e comunica a transportadora (passo 3). */
+  async generateLabels(
+    orderIds: string[],
+    accessToken: string,
+  ): Promise<GenerateResponse> {
+    return this.requestJson<GenerateResponse>(
+      '/api/v2/me/shipment/generate',
+      { orders: orderIds },
+      accessToken,
+    )
+  }
+
+  /** Retorna a URL de impressão da etiqueta (passo 4). */
+  async printLabels(
+    mode: 'private' | 'public',
+    orderIds: string[],
+    accessToken: string,
+  ): Promise<PrintResponse> {
+    return this.requestJson<PrintResponse>(
+      '/api/v2/me/shipment/print',
+      { mode, orders: orderIds },
+      accessToken,
+    )
+  }
+
+  private async requestJson<T>(
+    path: string,
+    body: unknown,
+    accessToken: string,
+  ): Promise<T> {
+    return this.request<T>(path, {
+      method: 'POST',
+      headers: this.headers(accessToken),
+      body: JSON.stringify(body),
+    })
+  }
+
+  private async requestForm<T>(
+    path: string,
+    params: Record<string, string>,
+  ): Promise<T> {
+    return this.request<T>(path, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': this.userAgent,
+      },
+      body: new URLSearchParams(params).toString(),
+    })
+  }
+
+  private headers(accessToken: string): Record<string, string> {
+    return {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'User-Agent': this.userAgent,
+      Authorization: `Bearer ${accessToken}`,
+    }
+  }
+
+  private async request<T>(path: string, init: RequestInit): Promise<T> {
+    this.assertConfigured()
+
+    let response: Response
+    try {
+      response = await fetch(`${this.baseUrl}${path}`, init)
+    } catch (error) {
+      this.logger.error(`Melhor Envio ${path} erro de rede: ${String(error)}`)
+      throw new MelhorEnvioApiError(
+        `Falha de rede ao chamar Melhor Envio: ${String(error)}`,
+      )
+    }
+
+    const body = (await response.json().catch(() => ({}))) as T
+
+    if (!response.ok) {
+      this.logger.error(
+        `Melhor Envio ${path} falhou (${response.status}): ${JSON.stringify(body)}`,
+      )
+      throw new MelhorEnvioApiError(
+        `Melhor Envio respondeu ${response.status}`,
+        response.status,
+      )
+    }
+
+    return body
+  }
+
+  private assertConfigured(): void {
+    if (!this.isConfigured()) {
+      throw new MelhorEnvioNotConfiguredError()
+    }
+  }
+}
+
+
+===== src/infrastructure/shipping/melhor-envio.gateway.ts =====
+import { Inject, Injectable, Logger } from '@nestjs/common'
+import { ShippingGatewayError } from '../../common/errors/shipping-gateway.error'
+import type {
+  CalculateQuoteInput,
+  CreateShipmentInput,
+  CreateShipmentResult,
+  ShippingAddress,
+  ShippingGatewayPort,
+  ShippingProduct,
+  ShippingQuote,
+  ShippingVolume,
+  TrackingInfo,
+} from '../../common/ports/shipping-gateway.port'
+import { SHIPPING_TOKEN_STORE_PORT } from './shipping-token-store.port'
+import type { ShippingTokenStorePort } from './shipping-token-store.port'
+import { MelhorEnvioApiError, MelhorEnvioClient } from './melhor-envio.client'
+import type {
+  CalculateQuotationInput,
+  CartAddress,
+  CartInput,
+  Quotation,
+  TrackingInfo as RawTrackingInfo,
+} from './melhor-envio.client'
+
+function toCents(value: string | number): number {
+  return Math.round(parseFloat(String(value)) * 100)
+}
+
+function toAddress(address: ShippingAddress): CartAddress {
+  return {
+    name: address.name,
+    phone: address.phone,
+    email: address.email,
+    ...(address.document ? { document: address.document } : {}),
+    postal_code: address.postalCode,
+    address: address.address,
+    city: address.city,
+    state_abbr: address.stateAbbr,
+  }
+}
+
+function toProducts(products?: ShippingProduct[]) {
+  if (!products) {
+    return undefined
+  }
+  return products.map((p) => ({
+    id: p.id,
+    width: p.width,
+    height: p.height,
+    length: p.length,
+    weight: p.weight,
+    insurance_value: p.insuranceValue,
+    quantity: p.quantity,
+  }))
+}
+
+function toVolumes(volumes?: ShippingVolume[]) {
+  if (!volumes) {
+    return undefined
+  }
+  return volumes.map((v) => ({
+    width: v.width,
+    height: v.height,
+    length: v.length,
+    weight: v.weight,
+    insurance: v.insurance,
+    ...(v.quantity !== undefined ? { quantity: v.quantity } : {}),
+  }))
+}
+
+/**
+ * Implementação real do `ShippingGatewayPort` (Melhor Envio).
+ * Gerencia o OAuth: lê o access token do `ShippingTokenStorePort` e, em 401,
+ * renova via refresh token e re-tenta uma vez.
+ */
+@Injectable()
+export class MelhorEnvioGateway implements ShippingGatewayPort {
+  private readonly logger = new Logger(MelhorEnvioGateway.name)
+
+  constructor(
+    private readonly client: MelhorEnvioClient,
+    @Inject(SHIPPING_TOKEN_STORE_PORT)
+    private readonly tokenStore: ShippingTokenStorePort,
+  ) {}
+
+  async calculateQuote(input: CalculateQuoteInput): Promise<ShippingQuote[]> {
+    const body: CalculateQuotationInput = {
+      from: { postal_code: input.fromPostalCode },
+      to: { postal_code: input.toPostalCode },
+      ...(input.products ? { products: toProducts(input.products) } : {}),
+      ...(input.volumes ? { volumes: toVolumes(input.volumes) } : {}),
+      ...(input.services ? { services: input.services } : {}),
+    }
+    const quotes = await this.withToken((token) =>
+      this.client.calculateShipping(body, token),
+    )
+    return quotes.map((q) => this.toQuote(q))
+  }
+
+  async createShipment(
+    input: CreateShipmentInput,
+  ): Promise<CreateShipmentResult> {
+    const body: CartInput = {
+      service: input.service,
+      from: toAddress(input.from),
+      to: toAddress(input.to),
+      ...(input.products ? { products: toProducts(input.products) } : {}),
+      ...(input.volumes ? { volumes: toVolumes(input.volumes) } : {}),
+    }
+    const res = await this.withToken((token) =>
+      this.client.addToCart(body, token),
+    )
+    return { orderId: res.id, protocol: res.protocol }
+  }
+
+  async payShipment(orderIds: string[]): Promise<void> {
+    await this.withToken((token) => this.client.checkout(orderIds, token))
+  }
+
+  async generateLabel(orderIds: string[]): Promise<void> {
+    await this.withToken((token) => this.client.generateLabels(orderIds, token))
+  }
+
+  async printLabel(
+    mode: 'private' | 'public',
+    orderIds: string[],
+  ): Promise<string> {
+    const res = await this.withToken((token) =>
+      this.client.printLabels(mode, orderIds, token),
+    )
+    return res.url
+  }
+
+  async track(orderIds: string[]): Promise<Record<string, TrackingInfo>> {
+    const raw = await this.withToken((token) =>
+      this.client.trackOrders(orderIds, token),
+    )
+    return this.mapTracking(raw)
+  }
+
+  private toQuote(q: Quotation): ShippingQuote {
+    return {
+      id: q.id,
+      name: q.name,
+      priceCents: toCents(q.price),
+      customPriceCents: toCents(q.custom_price),
+      discountCents: toCents(q.discount),
+      currency: q.currency,
+      deliveryTime: q.delivery_time,
+      customDeliveryTime: q.custom_delivery_time,
+      company: q.company,
+    }
+  }
+
+  private mapTracking(
+    raw: Record<string, RawTrackingInfo>,
+  ): Record<string, TrackingInfo> {
+    const result: Record<string, TrackingInfo> = {}
+    for (const [id, t] of Object.entries(raw)) {
+      result[id] = {
+        id: t.id,
+        protocol: t.protocol,
+        status: t.status,
+        tracking: t.tracking,
+        melhorenvioTracking: t.melhorenvio_tracking,
+        createdAt: t.created_at,
+        paidAt: t.paid_at,
+        generatedAt: t.generated_at,
+        postedAt: t.posted_at,
+        deliveredAt: t.delivered_at,
+        canceledAt: t.canceled_at,
+        expiredAt: t.expired_at,
+      }
+    }
+    return result
+  }
+
+  private async withToken<T>(fn: (token: string) => Promise<T>): Promise<T> {
+    const credential = await this.tokenStore.get()
+    if (!credential) {
+      throw new ShippingGatewayError(
+        'Credencial OAuth da Melhor Envio não configurada — conecte a conta no admin',
+      )
+    }
+
+    try {
+      return await fn(credential.accessToken)
+    } catch (error) {
+      if (error instanceof MelhorEnvioApiError && error.status === 401) {
+        this.logger.warn(
+          'Melhor Envio respondeu 401 — renovando token e re-tentando',
+        )
+        await this.refresh()
+        const fresh = await this.tokenStore.get()
+        if (!fresh) {
+          throw new ShippingGatewayError(
+            'Falha ao renovar o token da Melhor Envio',
+          )
+        }
+        return await fn(fresh.accessToken)
+      }
+      if (error instanceof MelhorEnvioApiError) {
+        throw new ShippingGatewayError(`Melhor Envio: ${error.message}`)
+      }
+      throw error
+    }
+  }
+
+  private async refresh(): Promise<void> {
+    const credential = await this.tokenStore.get()
+    if (!credential) {
+      throw new ShippingGatewayError('Sem refresh token da Melhor Envio')
+    }
+    const tokens = await this.client.refreshAccessToken(credential.refreshToken)
+    await this.tokenStore.save({
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresAt: new Date(Date.now() + (tokens.expires_in ?? 2592000) * 1000),
+    })
+  }
+}
+
+
+===== src/infrastructure/shipping/prisma-shipping-token.store.ts =====
+import { Inject, Injectable } from '@nestjs/common'
+import { PrismaService } from '../database/prisma.service'
+import type { StoredShippingCredential } from './shipping-token-store.port'
+import type { ShippingTokenStorePort } from './shipping-token-store.port'
+import { SHIPPING_TOKEN_CIPHER_PORT } from './shipping-token-cipher.port'
+import type { ShippingTokenCipherPort } from './shipping-token-cipher.port'
+
+/**
+ * Id fixo da linha única de `shipping_credentials` (OAuth single-account).
+ * O Elopet tem uma única conta Melhor Envio — sempre existe no máximo 1 linha.
+ */
+export const SHIPPING_CREDENTIAL_ID = 'shipping-credential'
+
+/**
+ * Implementação do `ShippingTokenStorePort` usando Prisma 7.
+ * Os tokens ficam cifrados (AES-256-GCM) em repouso — nunca em texto puro.
+ */
+@Injectable()
+export class PrismaShippingTokenStore implements ShippingTokenStorePort {
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(SHIPPING_TOKEN_CIPHER_PORT)
+    private readonly cipher: ShippingTokenCipherPort,
+  ) {}
+
+  async get(): Promise<StoredShippingCredential | null> {
+    const row = await this.prisma.shippingCredential.findFirst()
+    if (!row) {
+      return null
+    }
+    return {
+      accessToken: this.cipher.decrypt(row.access_token),
+      refreshToken: this.cipher.decrypt(row.refresh_token),
+      expiresAt: row.expires_at,
+    }
+  }
+
+  async save(credential: StoredShippingCredential): Promise<void> {
+    const accessToken = this.cipher.encrypt(credential.accessToken)
+    const refreshToken = this.cipher.encrypt(credential.refreshToken)
+
+    await this.prisma.shippingCredential.upsert({
+      where: { id: SHIPPING_CREDENTIAL_ID },
+      create: {
+        id: SHIPPING_CREDENTIAL_ID,
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_at: credential.expiresAt,
+      },
+      update: {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_at: credential.expiresAt,
+      },
+    })
+  }
+}

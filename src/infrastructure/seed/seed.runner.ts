@@ -239,6 +239,9 @@ export class SeedRunner {
     // 5. Planos e Features (Fase 7)
     await this.seedPlans()
 
+    // 5b. Produto "pingente" (catálogo de venda — Fase 9).
+    await this.seedProducts()
+
     // 6. Usuário de demonstração (cliente) + 2 pets + assinatura Premium.
     await this.seedSystemUser()
   }
@@ -284,6 +287,22 @@ export class SeedRunner {
         })
       }
     }
+  }
+
+  /** Popula o produto "pingente" (idempotente; preço editável no admin). */
+  private async seedProducts(): Promise<void> {
+    await this.prisma.product.upsert({
+      where: { sku: 'pingente' },
+      create: {
+        sku: 'pingente',
+        name: 'Pingente Elopet',
+        description:
+          'Pingente inteligente com NFC para identificação do seu pet',
+        price_cents: 1990,
+        active: true,
+      },
+      update: {},
+    })
   }
 
   private async upsertAdmin(

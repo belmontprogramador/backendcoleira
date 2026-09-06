@@ -1,0 +1,555 @@
+
+
+===== src/modules/orders/application/use-cases/create-order.use-case.ts =====
+import { Inject, Injectable } from '@nestjs/common'
+import { randomUUID } from 'node:crypto'
+import { Price } from '../../../../common/value-objects/price.vo'
+import type { PaymentMethod } from '../../../../common/value-objects/payment-method.vo'
+import type { PaymentStatus } from '../../../../common/value-objects/payment-status.vo'
+import {
+  PAYMENT_GATEWAY_PORT,
+  type PaymentGatewayPort,
+} from '../../../../common/ports/payment-gateway.port'
+import {
+  SHIPPING_GATEWAY_PORT,
+  type ShippingGatewayPort,
+} from '../../../../common/ports/shipping-gateway.port'
+import { SHIPPING_ORIGIN_POSTAL_CODE_PORT } from '../../../../common/ports/shipping-origin.port'
+import { AUDIT_LOGGER_PORT, type AuditLoggerPort } from '../../../../common/ports/audit-logger.port'
+import {
+  PRODUCT_REPOSITORY_PORT,
+  type ProductRepositoryPort,
+} from '../../../products/domain/repositories/product.repository.port'
+import { ProductNotFoundError } from '../../../products/application/errors'
+import {
+  ORDER_REPOSITORY_PORT,
+  type OrderRepositoryPort,
+} from '../../domain/repositories/order.repository.port'
+import { ShipTo } from '../../domain/value-objects/ship-to.vo'
+import { Order } from '../../domain/entities/order.entity'
+import { PINGENTE_PACKAGE } from '../../domain/constants/pingente-package'
+import { OrderFreightError } from '../errors'
+
+export interface CreateOrderInput {
+  buyerId: string
+  buyerEmail: string
+  productId: string
+  quantity: number
+  shipTo: {
+    postalCode: string
+    street: string
+    number: string
+    city: string
+    state: string
+    name: string
+    phone: string
+  }
+  freightServiceId: number
+  paymentMethod: PaymentMethod
+  cardToken?: string
+  cardPaymentMethodId?: string
+  cardInstallments?: number
+  cardIssuerId?: string
+  payerIdentificationType?: string
+  payerIdentificationNumber?: string
+  payerFirstName?: string
+  payerLastName?: string
+}
+
+export interface CreateOrderResult {
+  orderId: string
+  providerPaymentId: string
+  status: PaymentStatus
+  pixQrCode?: string
+  pixQrCodeBase64?: string
+  boletoUrl?: string
+  boletoBarcode?: string
+  cardApproved?: boolean
+}
+
+/**
+ * Cria a venda (PENDING) e dispara o pagamento no gateway.
+ *
+ * O preço do produto vem do banco (`Product.price`); o frete é re-cotado na
+ * hora via `ShippingGatewayPort.calculateQuote` (nunca confia em preço do
+ * cliente) e o serviço escolhido (`freightServiceId`) define o valor.
+ */
+@Injectable()
+export class CreateOrderUseCase {
+  constructor(
+    @Inject(PRODUCT_REPOSITORY_PORT)
+    private readonly products: ProductRepositoryPort,
+    @Inject(SHIPPING_GATEWAY_PORT)
+    private readonly shipping: ShippingGatewayPort,
+    @Inject(PAYMENT_GATEWAY_PORT)
+    private readonly payments: PaymentGatewayPort,
+    @Inject(ORDER_REPOSITORY_PORT)
+    private readonly orders: OrderRepositoryPort,
+    @Inject(AUDIT_LOGGER_PORT)
+    private readonly audit: AuditLoggerPort,
+    @Inject(SHIPPING_ORIGIN_POSTAL_CODE_PORT)
+    private readonly originPostalCode: string,
+  ) {}
+
+  async execute(input: CreateOrderInput): Promise<CreateOrderResult> {
+    const product = await this.products.findById(input.productId)
+    if (!product || !product.active) {
+      throw new ProductNotFoundError()
+    }
+
+    const shipTo = ShipTo.create(input.shipTo)
+
+    const quotes = await this.shipping.calculateQuote({
+      fromPostalCode: this.originPostalCode,
+      toPostalCode: shipTo.postalCode,
+      products: [{ ...PINGENTE_PACKAGE, quantity: input.quantity }],
+    })
+    const quote = quotes.find(q => q.id === input.freightServiceId)
+    if (!quote) {
+      throw new OrderFreightError(
+        `Serviço de frete ${input.freightServiceId} indisponível`,
+      )
+    }
+
+    const freightPrice = Price.create(
+      quote.customPriceCents ?? quote.priceCents,
+    )
+
+    const order = Order.create({
+      id: randomUUID(),
+      buyerId: input.buyerId,
+      productId: product.id,
+      unitPrice: product.price,
+      quantity: input.quantity,
+      freightPrice,
+      paymentMethod: input.paymentMethod,
+      shipTo,
+      freightServiceId: input.freightServiceId,
+    })
+
+    const payment = await this.payments.createPayment({
+      amountCents: order.totalPrice.amountInCents,
+      method: input.paymentMethod,
+      payerEmail: input.buyerEmail,
+      description: `Pingente Elopet x${input.quantity}`,
+      cardToken: input.cardToken,
+      cardPaymentMethodId: input.cardPaymentMethodId,
+      cardInstallments: input.cardInstallments,
+      cardIssuerId: input.cardIssuerId,
+      payerIdentificationType: input.payerIdentificationType,
+      payerIdentificationNumber: input.payerIdentificationNumber,
+      payerFirstName: input.payerFirstName,
+      payerLastName: input.payerLastName,
+    })
+
+    order.attachPayment(payment.providerPaymentId)
+    await this.orders.save(order)
+
+    await this.audit.log({
+      userId: input.buyerId,
+      action: 'order_created',
+      entity: 'Order',
+      entityId: order.id,
+      metadata: {
+        amountCents: order.totalPrice.amountInCents,
+        method: input.paymentMethod,
+      },
+    })
+
+    return {
+      orderId: order.id,
+      providerPaymentId: payment.providerPaymentId,
+      status: payment.status,
+      pixQrCode: payment.pixQrCode,
+      pixQrCodeBase64: payment.pixQrCodeBase64,
+      boletoUrl: payment.boletoUrl,
+      boletoBarcode: payment.boletoBarcode,
+      cardApproved: payment.cardApproved,
+    }
+  }
+}
+
+
+===== src/modules/orders/application/use-cases/get-order.use-case.ts =====
+import { Inject, Injectable } from '@nestjs/common'
+import {
+  ORDER_REPOSITORY_PORT,
+  type OrderRepositoryPort,
+} from '../../domain/repositories/order.repository.port'
+import type { Order } from '../../domain/entities/order.entity'
+import { OrderNotFoundError } from '../errors'
+
+export interface GetOrderInput {
+  orderId: string
+  viewerId: string
+}
+
+/**
+ * Detalha um pedido do cliente (ownership — anti-IDOR).
+ * Pedido inexistente OU de outro usuário → `OrderNotFoundError` (404), para
+ * não vazar a existência de pedidos de terceiros.
+ */
+@Injectable()
+export class GetOrderUseCase {
+  constructor(
+    @Inject(ORDER_REPOSITORY_PORT)
+    private readonly orders: OrderRepositoryPort,
+  ) {}
+
+  async execute(input: GetOrderInput): Promise<Order> {
+    const order = await this.orders.findById(input.orderId)
+    if (!order || order.buyerId !== input.viewerId) {
+      throw new OrderNotFoundError(input.orderId)
+    }
+    return order
+  }
+}
+
+
+===== src/modules/orders/application/use-cases/ship-order.use-case.ts =====
+import { Inject, Injectable } from '@nestjs/common'
+import { randomUUID } from 'node:crypto'
+import { AUDIT_LOGGER_PORT, type AuditLoggerPort } from '../../../../common/ports/audit-logger.port'
+import {
+  ORDER_REPOSITORY_PORT,
+  type OrderRepositoryPort,
+} from '../../domain/repositories/order.repository.port'
+import {
+  SHIPMENT_REPOSITORY_PORT,
+  type ShipmentRepositoryPort,
+} from '../../domain/repositories/shipment.repository.port'
+import { Shipment } from '../../domain/entities/shipment.entity'
+import type { OrderStatus } from '../../domain/value-objects/order-status.vo'
+import { OrderNotFoundError, OrderNotPaidError } from '../errors'
+
+export interface ShipOrderInput {
+  orderId: string
+  actorId: string
+  /** Id da etiqueta gerada (manual, no painel da ME). Obrigatório para rastreio. */
+  meOrderId?: string
+  protocol?: string
+  serviceId?: number
+  tracking?: string
+  trackingUrl?: string
+  labelUrl?: string
+}
+
+export interface ShipOrderResult {
+  orderId: string
+  status: OrderStatus
+  shipmentId?: string
+}
+
+/**
+ * Despacha o pedido (PAID → SHIPPED).
+ *
+ * No MVP a etiqueta é gerada manualmente pelo admin no painel da Melhor Envio;
+ * aqui o admin apenas confirma a postagem e, opcionalmente, registra o id da
+ * etiqueta (`meOrderId`) + código de rastreio para o `TrackOrderUseCase`.
+ */
+@Injectable()
+export class ShipOrderUseCase {
+  constructor(
+    @Inject(ORDER_REPOSITORY_PORT)
+    private readonly orders: OrderRepositoryPort,
+    @Inject(SHIPMENT_REPOSITORY_PORT)
+    private readonly shipments: ShipmentRepositoryPort,
+    @Inject(AUDIT_LOGGER_PORT)
+    private readonly audit: AuditLoggerPort,
+  ) {}
+
+  async execute(input: ShipOrderInput): Promise<ShipOrderResult> {
+    const order = await this.orders.findById(input.orderId)
+    if (!order) {
+      throw new OrderNotFoundError(input.orderId)
+    }
+    if (order.status !== 'PAID') {
+      throw new OrderNotPaidError(input.orderId)
+    }
+
+    order.markShipped()
+    await this.orders.save(order)
+
+    let shipmentId: string | undefined
+    if (input.meOrderId && input.protocol && input.serviceId) {
+      const shipment = Shipment.create({
+        id: randomUUID(),
+        orderId: order.id,
+        meOrderId: input.meOrderId,
+        protocol: input.protocol,
+        serviceId: input.serviceId,
+        tracking: input.tracking ?? null,
+        trackingUrl: input.trackingUrl ?? null,
+        labelUrl: input.labelUrl ?? null,
+      })
+      shipment.markPosted()
+      await this.shipments.save(shipment)
+      shipmentId = shipment.id
+    }
+
+    await this.audit.log({
+      userId: input.actorId,
+      action: 'order_shipped',
+      entity: 'Order',
+      entityId: order.id,
+      metadata: { shipmentId: shipmentId ?? null },
+    })
+
+    return { orderId: order.id, status: order.status, shipmentId }
+  }
+}
+
+
+===== src/modules/orders/application/use-cases/pay-order-webhook.use-case.ts =====
+import { Inject, Injectable } from '@nestjs/common'
+import {
+  PAYMENT_GATEWAY_PORT,
+  type PaymentGatewayPort,
+} from '../../../../common/ports/payment-gateway.port'
+import { AUDIT_LOGGER_PORT, type AuditLoggerPort } from '../../../../common/ports/audit-logger.port'
+import {
+  ORDER_REPOSITORY_PORT,
+  type OrderRepositoryPort,
+} from '../../domain/repositories/order.repository.port'
+import type { OrderStatus } from '../../domain/value-objects/order-status.vo'
+
+export interface PayOrderWebhookInput {
+  paymentId: string
+}
+
+export interface PayOrderWebhookResult {
+  processed: boolean
+  orderId?: string
+  orderStatus?: OrderStatus
+}
+
+/**
+ * Processa o webhook do Mercado Pago (pagamento da venda).
+ *
+ * O payload do MP não embute o `status` — o use case consulta o gateway
+ * (`getPayment`) e só então avança a máquina de estados do `Order`.
+ * Idempotente: transições fora de ordem (ex.: APPROVED num pedido já PAID)
+ * não lançam — apenas retornam `processed: false`.
+ */
+@Injectable()
+export class PayOrderWebhookUseCase {
+  constructor(
+    @Inject(PAYMENT_GATEWAY_PORT)
+    private readonly payments: PaymentGatewayPort,
+    @Inject(ORDER_REPOSITORY_PORT)
+    private readonly orders: OrderRepositoryPort,
+    @Inject(AUDIT_LOGGER_PORT)
+    private readonly audit: AuditLoggerPort,
+  ) {}
+
+  async execute(input: PayOrderWebhookInput): Promise<PayOrderWebhookResult> {
+    const payment = await this.payments.getPayment(input.paymentId)
+    const order = await this.orders.findByPaymentId(input.paymentId)
+    if (!order) {
+      return { processed: false }
+    }
+
+    let action: 'order_paid' | 'order_cancelled' | 'order_refunded' | null = null
+
+    if (payment.status === 'APPROVED' && order.status === 'PENDING') {
+      order.markPaid()
+      action = 'order_paid'
+    } else if (
+      (payment.status === 'REJECTED' || payment.status === 'CHARGED_BACK') &&
+      order.status === 'PENDING'
+    ) {
+      order.cancel()
+      action = 'order_cancelled'
+    } else if (
+      payment.status === 'REFUNDED' &&
+      (order.status === 'PAID' || order.status === 'SHIPPED')
+    ) {
+      order.refund()
+      action = 'order_refunded'
+    }
+
+    if (!action) {
+      return { processed: false }
+    }
+
+    await this.orders.save(order)
+    await this.audit.log({
+      userId: order.buyerId,
+      action,
+      entity: 'Order',
+      entityId: order.id,
+      metadata: {
+        paymentId: input.paymentId,
+        paymentStatus: payment.status,
+      },
+    })
+
+    return { processed: true, orderId: order.id, orderStatus: order.status }
+  }
+}
+
+
+===== src/modules/orders/application/use-cases/list-my-orders.use-case.ts =====
+import { Inject, Injectable } from '@nestjs/common'
+import {
+  ORDER_REPOSITORY_PORT,
+  type OrderRepositoryPort,
+} from '../../domain/repositories/order.repository.port'
+import type { PaginatedOrdersResult } from './list-all-orders.use-case'
+
+export interface ListMyOrdersInput {
+  buyerId: string
+  page: number
+  limit: number
+}
+
+/**
+ * Lista os pedidos do cliente logado (sempre filtrados por `buyerId`).
+ * `total` é o total global de pedidos do comprador.
+ */
+@Injectable()
+export class ListMyOrdersUseCase {
+  constructor(
+    @Inject(ORDER_REPOSITORY_PORT)
+    private readonly orders: OrderRepositoryPort,
+  ) {}
+
+  async execute(input: ListMyOrdersInput): Promise<PaginatedOrdersResult> {
+    const filter = {
+      buyerId: input.buyerId,
+      page: input.page,
+      limit: input.limit,
+    }
+    const [data, total] = await Promise.all([
+      this.orders.list(filter),
+      this.orders.count(filter),
+    ])
+    return { data, total, page: input.page, limit: input.limit }
+  }
+}
+
+
+===== src/modules/orders/application/use-cases/list-all-orders.use-case.ts =====
+import { Inject, Injectable } from '@nestjs/common'
+import {
+  ORDER_REPOSITORY_PORT,
+  type OrderRepositoryPort,
+} from '../../domain/repositories/order.repository.port'
+import type { Order } from '../../domain/entities/order.entity'
+import type { OrderStatus } from '../../domain/value-objects/order-status.vo'
+
+export interface PaginatedOrdersResult {
+  data: Order[]
+  total: number
+  page: number
+  limit: number
+}
+
+export interface ListAllOrdersInput {
+  page: number
+  limit: number
+  status?: OrderStatus
+}
+
+/**
+ * Lista todos os pedidos (admin), com filtro por status e paginação.
+ * `total` é o total global do filtro (ignorando paginação).
+ */
+@Injectable()
+export class ListAllOrdersUseCase {
+  constructor(
+    @Inject(ORDER_REPOSITORY_PORT)
+    private readonly orders: OrderRepositoryPort,
+  ) {}
+
+  async execute(input: ListAllOrdersInput): Promise<PaginatedOrdersResult> {
+    const filter = {
+      page: input.page,
+      limit: input.limit,
+      status: input.status,
+    }
+    const [data, total] = await Promise.all([
+      this.orders.list(filter),
+      this.orders.count(filter),
+    ])
+    return { data, total, page: input.page, limit: input.limit }
+  }
+}
+
+
+===== src/modules/orders/application/errors.ts =====
+import { DomainError } from '../../../common/errors/domain-error'
+
+export class OrderNotFoundError extends DomainError {
+  constructor(id: string) {
+    super(`Pedido não encontrado: ${id}`, 404)
+  }
+}
+
+export class OrderNotPaidError extends DomainError {
+  constructor(id: string) {
+    super(`Pedido ${id} não está pago — só é possível despachar pedidos PAID`, 409)
+  }
+}
+
+export class OrderFreightError extends DomainError {
+  constructor(message: string) {
+    super(message, 400)
+  }
+}
+
+export class ShipmentNotFoundError extends DomainError {
+  constructor(orderId: string) {
+    super(`Envio não encontrado para o pedido ${orderId}`, 404)
+  }
+}
+
+
+===== src/modules/orders/domain/repositories/order.repository.port.ts =====
+import type { Order } from '../entities/order.entity'
+import type { OrderStatus } from '../value-objects/order-status.vo'
+
+/**
+ * Filtro da listagem de pedidos.
+ *
+ * - `page`/`limit` → paginação.
+ * - `status`   → status do pedido (enum `OrderStatus`) — filtro admin.
+ * - `buyerId`  → dono (id do usuário) — usado pela listagem "Meus pedidos".
+ */
+export interface ListOrdersFilter {
+  page: number
+  limit: number
+  status?: OrderStatus
+  buyerId?: string
+}
+
+/**
+ * Porta do repositório de pedidos (venda do pingente).
+ * DIP: domínio/aplicação dependem desta interface; a implementação (Prisma)
+ * vive na infraestrutura.
+ */
+export interface OrderRepositoryPort {
+  save(order: Order): Promise<Order>
+  findById(id: string): Promise<Order | null>
+  findByPaymentId(paymentId: string): Promise<Order | null>
+  list(filter: ListOrdersFilter): Promise<Order[]>
+  count(filter: ListOrdersFilter): Promise<number>
+}
+
+export const ORDER_REPOSITORY_PORT = Symbol('ORDER_REPOSITORY_PORT')
+
+
+===== src/modules/orders/domain/repositories/shipment.repository.port.ts =====
+import type { Shipment } from '../entities/shipment.entity'
+
+/**
+ * Porta do repositório de envios (etiqueta Melhor Envio) — 1:1 com `Order`.
+ * DIP: domínio/aplicação dependem desta interface; a implementação (Prisma)
+ * vive na infraestrutura.
+ */
+export interface ShipmentRepositoryPort {
+  save(shipment: Shipment): Promise<Shipment>
+  findByOrderId(orderId: string): Promise<Shipment | null>
+}
+
+export const SHIPMENT_REPOSITORY_PORT = Symbol('SHIPMENT_REPOSITORY_PORT')

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from '../../../../infrastructure/database/prisma.service'
 import type { WebhookEvent } from '../../domain/entities/webhook-event.entity'
-import type { PaymentProvider } from '../../domain/value-objects/payment-provider.vo'
+import type { PaymentProvider } from '../../../../common/value-objects/payment-provider.vo'
 import type { WebhookEventRepositoryPort } from '../../domain/repositories/webhook-event.repository.port'
 import { WebhookEventMapper } from '../mappers/webhook-event.mapper'
 

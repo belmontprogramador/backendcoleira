@@ -1,5 +1,5 @@
 import type { PaymentTransaction } from '../entities/payment-transaction.entity'
-import type { PaymentProvider } from '../value-objects/payment-provider.vo'
+import type { PaymentProvider } from '../../../../common/value-objects/payment-provider.vo'
 
 /**
  * Porta do repositório de transações de pagamento (reconciliação financeira).

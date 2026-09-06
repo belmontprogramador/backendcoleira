@@ -1,6 +1,6 @@
 import { Subscription } from '../../domain/entities/subscription.entity'
 import type { SubscriptionStatus } from '../../domain/value-objects/subscription-status.vo'
-import type { PaymentProvider } from '../../domain/value-objects/payment-provider.vo'
+import type { PaymentProvider } from '../../../../common/value-objects/payment-provider.vo'
 import type { SubscriptionModel } from '../../../../generated/prisma/models/Subscription'
 
 /**

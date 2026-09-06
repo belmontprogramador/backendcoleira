@@ -1,0 +1,423 @@
+
+
+===== src/app.module.ts =====
+import { Module } from '@nestjs/common'
+import { APP_FILTER, APP_GUARD } from '@nestjs/core'
+import { ConfigModule } from '@nestjs/config'
+import { LoggerModule } from 'nestjs-pino'
+import { AppController } from './app.controller'
+import { AppService } from './app.service'
+import { AuthExceptionFilter } from './common/filters/auth-exception.filter'
+import { RolesGuard } from './common/guards/roles.guard'
+import { FeatureGuard } from './common/guards/feature.guard'
+import { envSchema } from './config/env.validation'
+import { HealthModule } from './health/health.module'
+import { CacheModule } from './infrastructure/cache/cache.module'
+import { CryptoModule } from './infrastructure/crypto/crypto.module'
+import { DatabaseModule } from './infrastructure/database/database.module'
+import { AuditModule } from './infrastructure/audit/audit.module'
+import { EmailModule } from './infrastructure/email/email.module'
+import { WhatsAppModule } from './infrastructure/whatsapp/whatsapp.module'
+import { ShippingModule } from './infrastructure/shipping/shipping.module'
+import { GeolocationModule } from './infrastructure/geolocation/geolocation.module'
+import { TemporaryTokenStoreModule } from './infrastructure/auth/temporary-token-store.module'
+import { RefreshTokenStoreModule } from './infrastructure/auth/refresh-token-store.module'
+import { RateLimitModule } from './infrastructure/rate-limit/rate-limit.module'
+import { AuthModule } from './modules/auth/auth.module'
+import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard'
+import { UsersModule } from './modules/users/users.module'
+import { PetsModule } from './modules/pets/pets.module'
+import { NfcModule } from './modules/nfc/nfc.module'
+import { OwnershipModule } from './modules/ownership/ownership.module'
+import { PublicProfileModule } from './modules/public-profile/public-profile.module'
+import { PublicProfileInvalidationModule } from './modules/public-profile/infrastructure/public-profile-invalidation.module'
+import { AccessEventsModule } from './modules/access-events/access-events.module'
+import { ContactModule } from './modules/contact/contact.module'
+import { PlansModule } from './modules/plans/plans.module'
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module'
+import { PetMedicalModule } from './modules/pet-medical/pet-medical.module'
+import { PetContactsModule } from './modules/pet-contacts/pet-contacts.module'
+import { DashboardModule } from './modules/dashboard/dashboard.module'
+import { ProductsModule } from './modules/products/products.module'
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validate: config => {
+        // Fail-fast: se o .env estiver malformado, a aplicação não sobe.
+        const parsed = envSchema.safeParse(config)
+        if (!parsed.success) {
+          throw new Error(
+            `Configuração de ambiente inválida: ${JSON.stringify(
+              parsed.error.flatten().fieldErrors,
+            )}`,
+          )
+        }
+        return parsed.data
+      },
+    }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        level: process.env.LOG_LEVEL ?? 'info',
+        transport:
+          process.env.NODE_ENV === 'production'
+            ? undefined
+            : { target: 'pino-pretty', options: { singleLine: true } },
+        autoLogging: false,
+      },
+    }),
+    DatabaseModule,
+    CacheModule,
+    CryptoModule,
+    AuditModule,
+    EmailModule,
+    WhatsAppModule,
+    ShippingModule,
+    GeolocationModule,
+    TemporaryTokenStoreModule,
+    RefreshTokenStoreModule,
+    RateLimitModule,
+    HealthModule,
+    UsersModule,
+    AuthModule,
+    PetsModule,
+    NfcModule,
+    OwnershipModule,
+    AccessEventsModule,
+    ContactModule,
+    PlansModule,
+    SubscriptionsModule,
+    PetMedicalModule,
+    PetContactsModule,
+    DashboardModule,
+    ProductsModule,
+    PublicProfileModule,
+    PublicProfileInvalidationModule,
+  ],
+  controllers: [AppController],
+  providers: [
+    AppService,
+    { provide: APP_FILTER, useClass: AuthExceptionFilter },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: FeatureGuard },
+  ],
+})
+export class AppModule {}
+
+
+===== src/modules/products/presentation/controllers/products.controller.ts =====
+import { Controller, Get } from '@nestjs/common'
+import { GetPingenteProductUseCase } from '../../application/use-cases/get-pingente-product.use-case'
+import { ProductResponseMapper } from '../../application/mappers/product-response.mapper'
+import { Public } from '../../../../common/decorators/public.decorator'
+
+/**
+ * Rota pública do catálogo de produtos (`GET /products/pingente`).
+ * Retorna o produto "pingente" com preço dinâmico (vem do banco).
+ */
+@Controller('products')
+export class ProductsController {
+  constructor(private readonly getPingente: GetPingenteProductUseCase) {}
+
+  @Public()
+  @Get('pingente')
+  async pingente() {
+    const product = await this.getPingente.execute()
+    return ProductResponseMapper.toResponse(product)
+  }
+}
+
+
+===== src/modules/products/presentation/controllers/admin-products.controller.ts =====
+import { Body, Controller, Param, Patch } from '@nestjs/common'
+import { UpdateProductUseCase } from '../../application/use-cases/update-product.use-case'
+import { ProductResponseMapper } from '../../application/mappers/product-response.mapper'
+import { updateProductSchema } from '../../application/dtos/update-product.schema'
+import type { UpdateProductDto } from '../../application/dtos/update-product.schema'
+import { Roles } from '../../../../common/decorators/roles.decorator'
+import { ZodValidationPipe } from '../../../../common/pipes/zod-validation.pipe'
+
+/**
+ * Rotas administrativas de produtos (`/admin/products`).
+ *
+ * - `PATCH /admin/products/:id` — edita nome/descrição/preço/ativo de um produto.
+ *   Requer ADMIN (SUPER_ADMIN tem bypass).
+ */
+@Controller('admin/products')
+export class AdminProductsController {
+  constructor(private readonly updateProduct: UpdateProductUseCase) {}
+
+  @Patch(':id')
+  @Roles('ADMIN')
+  async update(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(updateProductSchema)) body: UpdateProductDto,
+  ) {
+    const product = await this.updateProduct.execute(id, body)
+    return ProductResponseMapper.toResponse(product)
+  }
+}
+
+
+===== src/modules/subscriptions/presentation/controllers/payment-webhook.controller.ts =====
+import { Controller, Headers, Logger, Post, Req } from '@nestjs/common'
+import type { RawBodyRequest } from '@nestjs/common'
+import type { Request } from 'express'
+import { ProcessPaymentWebhookUseCase } from '../../application/use-cases/process-payment-webhook.use-case'
+import { Public } from '../../../../common/decorators/public.decorator'
+
+/**
+ * Rota pública de webhook de pagamento (`POST /webhooks/payment`).
+ * O body é validado por assinatura (HMAC) + idempotência, não por Zod.
+ */
+@Controller('webhooks')
+export class PaymentWebhookController {
+  private readonly logger = new Logger(PaymentWebhookController.name)
+
+  constructor(private readonly process: ProcessPaymentWebhookUseCase) {}
+
+  @Public()
+  @Post('payment')
+  async handle(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ): Promise<{ received: true }> {
+    const dataId = this.extractDataId(req)
+    this.logger.log(
+      `Webhook recebido: x-signature=${typeof headers['x-signature'] === 'string' ? 'presente' : 'ausente'}, ` +
+        `x-request-id=${typeof headers['x-request-id'] === 'string' ? 'presente' : 'ausente'}, ` +
+        `data.id=${dataId || '(ausente)'}`,
+    )
+
+    const rawBody =
+      req.rawBody?.toString('utf8') ??
+      (typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {}))
+
+    await this.process.execute({ headers, rawBody, dataId })
+    return { received: true }
+  }
+
+  private extractDataId(req: RawBodyRequest<Request>): string {
+    const value = (req.query as Record<string, unknown>)['data.id']
+    if (typeof value === 'string') return value
+    if (Array.isArray(value) && typeof value[0] === 'string') return value[0]
+    return ''
+  }
+}
+
+
+===== src/modules/subscriptions/presentation/controllers/subscriptions.controller.ts =====
+import { Body, Controller, Get, Post, Res } from '@nestjs/common'
+import type { Response } from 'express'
+import { GetSubscriptionUseCase } from '../../application/use-cases/get-subscription.use-case'
+import { GetUserPlanFeaturesUseCase } from '../../application/use-cases/get-user-plan-features.use-case'
+import { InitiateSubscriptionCheckoutUseCase } from '../../application/use-cases/initiate-subscription-checkout.use-case'
+import { CancelSubscriptionUseCase } from '../../application/use-cases/cancel-subscription.use-case'
+import { SubscriptionResponseMapper } from '../../application/mappers/subscription-response.mapper'
+import { checkoutSchema } from '../../application/dtos/checkout.schema'
+import type { CheckoutDto } from '../../application/dtos/checkout.schema'
+import { CurrentUser } from '../../../../common/decorators/current-user.decorator'
+import type { RequestUser } from '../../../../common/decorators/current-user.decorator'
+import { ZodValidationPipe } from '../../../../common/pipes/zod-validation.pipe'
+
+/**
+ * Rotas de assinatura do usuário autenticado (`/subscriptions`).
+ * - `GET /current`  → assinatura atual (expiração lazy).
+ * - `GET /features` → plano atual + features ativas (para a UI).
+ * - `POST /checkout` → checkout próprio (PIX/cartão/boleto).
+ * - `POST /cancel`  → cancelamento (RF21).
+ */
+@Controller('subscriptions')
+export class SubscriptionsController {
+  constructor(
+    private readonly getSubscription: GetSubscriptionUseCase,
+    private readonly checkout: InitiateSubscriptionCheckoutUseCase,
+    private readonly cancel: CancelSubscriptionUseCase,
+    private readonly getUserPlanFeatures: GetUserPlanFeaturesUseCase,
+  ) {}
+
+  @Get('current')
+  async current(@CurrentUser() user: RequestUser, @Res() res: Response) {
+    const subscription = await this.getSubscription.execute(user.sub)
+    return res.json(
+      subscription ? SubscriptionResponseMapper.toResponse(subscription) : null,
+    )
+  }
+
+  @Get('features')
+  async features(@CurrentUser() user: RequestUser) {
+    const result = await this.getUserPlanFeatures.execute(user.sub)
+    return {
+      code: result.plan?.code ?? null,
+      features: result.features.map(feature => feature.code),
+    }
+  }
+
+  @Post('checkout')
+  async checkoutRoute(
+    @CurrentUser() user: RequestUser,
+    @Body(new ZodValidationPipe(checkoutSchema)) body: CheckoutDto,
+  ) {
+    return this.checkout.execute({
+      userId: user.sub,
+      planId: body.planId,
+      paymentMethod: body.paymentMethod,
+      payerEmail: user.email,
+      cardToken: body.cardToken,
+      cardPaymentMethodId: body.cardPaymentMethodId,
+      cardInstallments: body.cardInstallments,
+      cardIssuerId: body.cardIssuerId,
+      payerIdentificationType: body.payerIdentificationType,
+      payerIdentificationNumber: body.payerIdentificationNumber,
+      payerFirstName: body.payerFirstName,
+      payerLastName: body.payerLastName,
+    })
+  }
+
+  @Post('cancel')
+  async cancelRoute(@CurrentUser() user: RequestUser) {
+    const subscription = await this.cancel.execute(user.sub)
+    return SubscriptionResponseMapper.toResponse(subscription)
+  }
+}
+
+
+===== src/modules/orders/domain/value-objects/order-status.vo.ts =====
+export const ORDER_STATUS_VALUES = [
+  'PENDING',
+  'PAID',
+  'SHIPPED',
+  'DELIVERED',
+  'CANCELLED',
+  'REFUNDED',
+] as const
+
+export type OrderStatus = (typeof ORDER_STATUS_VALUES)[number]
+
+/**
+ * Status do ciclo de vida de uma venda (`Order`), desacoplado do `NfcTag`.
+ * Fluxo normal: PENDING → PAID → SHIPPED → DELIVERED.
+ * Terminais: CANCELLED (antes de pagar) e REFUNDED (estorno).
+ */
+export function isOrderStatus(value: string): value is OrderStatus {
+  return (ORDER_STATUS_VALUES as readonly string[]).includes(value)
+}
+
+
+===== src/modules/subscriptions/subscriptions.module.ts =====
+import { Module } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+import { PlansModule } from '../plans/plans.module'
+import { UsersModule } from '../users/users.module'
+import { SUBSCRIPTION_REPOSITORY_PORT } from './domain/repositories/subscription.repository.port'
+import { SUBSCRIPTION_OWNER_INFO_PORT } from './domain/repositories/subscription-owner-info.port'
+import { PAYMENT_TRANSACTION_REPOSITORY_PORT } from './domain/repositories/payment-transaction.repository.port'
+import { WEBHOOK_EVENT_REPOSITORY_PORT } from './domain/repositories/webhook-event.repository.port'
+import { PAYMENT_GATEWAY_PORT } from '../../common/ports/payment-gateway.port'
+import type { PaymentGatewayPort } from '../../common/ports/payment-gateway.port'
+import { PAYMENT_WEBHOOK_VALIDATOR_PORT } from '../../common/ports/payment-webhook-validator.port'
+import { PrismaSubscriptionRepository } from './infrastructure/repositories/prisma-subscription.repository'
+import { PrismaSubscriptionOwnerInfo } from './infrastructure/repositories/prisma-subscription-owner-info'
+import { PrismaPaymentTransactionRepository } from './infrastructure/repositories/prisma-payment-transaction.repository'
+import { PrismaWebhookEventRepository } from './infrastructure/repositories/prisma-webhook-event.repository'
+import { PrismaFeatureAccessService } from './infrastructure/prisma-feature-access.service'
+import { MercadoPagoGateway } from '../../infrastructure/payments/mercado-pago.gateway'
+import { MercadoPagoMockGateway } from '../../infrastructure/payments/mercado-pago.mock.gateway'
+import { MercadoPagoWebhookValidator } from '../../infrastructure/payments/mercado-pago-webhook.validator'
+import { FEATURE_ACCESS_PORT } from '../../common/ports/feature-access.port'
+import { CheckFeatureAccessUseCase } from './application/use-cases/check-feature-access.use-case'
+import { GetUserPlanFeaturesUseCase } from './application/use-cases/get-user-plan-features.use-case'
+import { InitiateSubscriptionCheckoutUseCase } from './application/use-cases/initiate-subscription-checkout.use-case'
+import { ProcessPaymentWebhookUseCase } from './application/use-cases/process-payment-webhook.use-case'
+import { GetSubscriptionUseCase } from './application/use-cases/get-subscription.use-case'
+import { AdminGetUserPlanUseCase } from './application/use-cases/admin-get-user-plan.use-case'
+import { ListSubscriptionsUseCase } from './application/use-cases/list-subscriptions.use-case'
+import { CancelSubscriptionUseCase } from './application/use-cases/cancel-subscription.use-case'
+import { AdminCancelSubscriptionUseCase } from './application/use-cases/admin-cancel-subscription.use-case'
+import { AdminSubscriptionResponseAssembler } from './application/assemblers/admin-subscription-response.assembler'
+import { SubscriptionsController } from './presentation/controllers/subscriptions.controller'
+import { AdminSubscriptionsController } from './presentation/controllers/admin-subscriptions.controller'
+import { PaymentWebhookController } from './presentation/controllers/payment-webhook.controller'
+
+/**
+ * Módulo de assinaturas (Feature System + ciclo de assinatura).
+ * Importa `PlansModule` (catálogo) e `UsersModule` (para `USER_ACCESS_PORT`,
+ * usado no cancelamento administrativo com hierarquia). Provê o
+ * `FEATURE_ACCESS_PORT` (transversal) para o `FeatureGuard` e use cases Premium.
+ */
+@Module({
+  imports: [PlansModule, UsersModule],
+  controllers: [
+    SubscriptionsController,
+    AdminSubscriptionsController,
+    PaymentWebhookController,
+  ],
+  providers: [
+    PrismaSubscriptionRepository,
+    {
+      provide: SUBSCRIPTION_REPOSITORY_PORT,
+      useClass: PrismaSubscriptionRepository,
+    },
+    PrismaSubscriptionOwnerInfo,
+    {
+      provide: SUBSCRIPTION_OWNER_INFO_PORT,
+      useClass: PrismaSubscriptionOwnerInfo,
+    },
+    PrismaPaymentTransactionRepository,
+    {
+      provide: PAYMENT_TRANSACTION_REPOSITORY_PORT,
+      useClass: PrismaPaymentTransactionRepository,
+    },
+    PrismaWebhookEventRepository,
+    {
+      provide: WEBHOOK_EVENT_REPOSITORY_PORT,
+      useClass: PrismaWebhookEventRepository,
+    },
+    {
+      provide: PAYMENT_GATEWAY_PORT,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService): PaymentGatewayPort => {
+        const token = config.get<string>('MERCADO_PAGO_ACCESS_TOKEN')
+        return token
+          ? new MercadoPagoGateway(config)
+          : new MercadoPagoMockGateway()
+      },
+    },
+    {
+      provide: PAYMENT_WEBHOOK_VALIDATOR_PORT,
+      useClass: MercadoPagoWebhookValidator,
+    },
+    { provide: FEATURE_ACCESS_PORT, useClass: PrismaFeatureAccessService },
+    CheckFeatureAccessUseCase,
+    GetUserPlanFeaturesUseCase,
+    InitiateSubscriptionCheckoutUseCase,
+    ProcessPaymentWebhookUseCase,
+    GetSubscriptionUseCase,
+    AdminGetUserPlanUseCase,
+    ListSubscriptionsUseCase,
+    CancelSubscriptionUseCase,
+    AdminCancelSubscriptionUseCase,
+    AdminSubscriptionResponseAssembler,
+  ],
+  exports: [
+    SUBSCRIPTION_REPOSITORY_PORT,
+    SUBSCRIPTION_OWNER_INFO_PORT,
+    PAYMENT_TRANSACTION_REPOSITORY_PORT,
+    WEBHOOK_EVENT_REPOSITORY_PORT,
+    PAYMENT_GATEWAY_PORT,
+    PAYMENT_WEBHOOK_VALIDATOR_PORT,
+    FEATURE_ACCESS_PORT,
+    CheckFeatureAccessUseCase,
+    GetUserPlanFeaturesUseCase,
+    InitiateSubscriptionCheckoutUseCase,
+    ProcessPaymentWebhookUseCase,
+    GetSubscriptionUseCase,
+    AdminGetUserPlanUseCase,
+    ListSubscriptionsUseCase,
+    CancelSubscriptionUseCase,
+    AdminCancelSubscriptionUseCase,
+  ],
+})
+export class SubscriptionsModule {}

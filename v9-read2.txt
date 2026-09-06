@@ -1,0 +1,787 @@
+
+
+===== src/modules/orders/domain/entities/order.entity.ts =====
+import { DomainError } from '../../../../common/errors/domain-error'
+import { Price } from '../../../../common/value-objects/price.vo'
+import type { PaymentMethod } from '../../../../common/value-objects/payment-method.vo'
+import type { OrderStatus } from '../value-objects/order-status.vo'
+import type { ShipTo } from '../value-objects/ship-to.vo'
+
+export class InvalidOrderStatusTransitionError extends DomainError {
+  constructor(from: OrderStatus, to: OrderStatus) {
+    super(`Transição inválida de status do pedido: ${from} → ${to}`, 400)
+  }
+}
+
+export class InvalidOrderError extends DomainError {
+  constructor(message: string) {
+    super(message, 400)
+  }
+}
+
+export interface CreateOrderProps {
+  id: string
+  buyerId: string
+  productId: string
+  unitPrice: Price
+  quantity?: number
+  freightPrice?: Price
+  paymentMethod: PaymentMethod
+  shipTo: ShipTo
+  freightServiceId?: number | null
+  paymentId?: string | null
+}
+
+export interface ReconstructOrderProps {
+  id: string
+  buyerId: string
+  productId: string
+  unitPrice: Price
+  quantity: number
+  freightPrice: Price
+  status: OrderStatus
+  paymentId: string | null
+  paymentMethod: PaymentMethod
+  shipTo: ShipTo
+  freightServiceId: number | null
+  paidAt: Date | null
+  shippedAt: Date | null
+  deliveredAt: Date | null
+  cancelledAt: Date | null
+  refundedAt: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+/**
+ * Transições válidas de estado da venda (plano-melhor-envio §8).
+ * PENDING → PAID → SHIPPED → DELIVERED; terminais CANCELLED (só de PENDING)
+ * e REFUNDED (de PAID ou SHIPPED — estorno/retorno).
+ */
+const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  PENDING: ['PAID', 'CANCELLED'],
+  PAID: ['SHIPPED', 'REFUNDED'],
+  SHIPPED: ['DELIVERED', 'REFUNDED'],
+  DELIVERED: [],
+  CANCELLED: [],
+  REFUNDED: [],
+}
+
+/**
+ * Agregado `Order` — a venda de um produto (pingente).
+ * Desacoplado de `NfcTag`: nenhuma transição aqui toca a ativação do pingente.
+ */
+export class Order {
+  private constructor(
+    private readonly _id: string,
+    private readonly _buyerId: string,
+    private readonly _productId: string,
+    private readonly _unitPrice: Price,
+    private readonly _quantity: number,
+    private readonly _freightPrice: Price,
+    private _status: OrderStatus,
+    private _paymentId: string | null,
+    private readonly _paymentMethod: PaymentMethod,
+    private readonly _shipTo: ShipTo,
+    private _freightServiceId: number | null,
+    private _paidAt: Date | null,
+    private _shippedAt: Date | null,
+    private _deliveredAt: Date | null,
+    private _cancelledAt: Date | null,
+    private _refundedAt: Date | null,
+    private readonly _createdAt: Date,
+    private _updatedAt: Date,
+  ) {}
+
+  static create(props: CreateOrderProps): Order {
+    const quantity = props.quantity ?? 1
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      throw new InvalidOrderError('Quantidade deve ser um inteiro >= 1')
+    }
+    const freightServiceId = props.freightServiceId ?? null
+    if (
+      freightServiceId !== null &&
+      (!Number.isInteger(freightServiceId) || freightServiceId < 1)
+    ) {
+      throw new InvalidOrderError('freightServiceId inválido')
+    }
+    const now = new Date()
+    return new Order(
+      props.id,
+      props.buyerId,
+      props.productId,
+      props.unitPrice,
+      quantity,
+      props.freightPrice ?? Price.zero(),
+      'PENDING',
+      props.paymentId ?? null,
+      props.paymentMethod,
+      props.shipTo,
+      freightServiceId,
+      null,
+      null,
+      null,
+      null,
+      null,
+      now,
+      now,
+    )
+  }
+
+  static reconstitute(props: ReconstructOrderProps): Order {
+    return new Order(
+      props.id,
+      props.buyerId,
+      props.productId,
+      props.unitPrice,
+      props.quantity,
+      props.freightPrice,
+      props.status,
+      props.paymentId,
+      props.paymentMethod,
+      props.shipTo,
+      props.freightServiceId,
+      props.paidAt,
+      props.shippedAt,
+      props.deliveredAt,
+      props.cancelledAt,
+      props.refundedAt,
+      props.createdAt,
+      props.updatedAt,
+    )
+  }
+
+  /** Associa o id do pagamento (MP) ao pedido, sem mudar o status. */
+  attachPayment(paymentId: string): void {
+    this._paymentId = paymentId
+    this.touch()
+  }
+
+  /** PENDING → PAID (webhook MP aprovou). */
+  markPaid(): void {
+    this.transitionTo('PAID')
+    this._paidAt = new Date()
+  }
+
+  /** PAID → SHIPPED (admin gerou a etiqueta/postagem). */
+  markShipped(): void {
+    this.transitionTo('SHIPPED')
+    this._shippedAt = new Date()
+  }
+
+  /** SHIPPED → DELIVERED (webhook ME ou ajuste manual do admin). */
+  markDelivered(): void {
+    this.transitionTo('DELIVERED')
+    this._deliveredAt = new Date()
+  }
+
+  /** PENDING → CANCELLED (cancelamento antes do pagamento). */
+  cancel(): void {
+    this.transitionTo('CANCELLED')
+    this._cancelledAt = new Date()
+  }
+
+  /** PAID|SHIPPED → REFUNDED (estorno). */
+  refund(): void {
+    this.transitionTo('REFUNDED')
+    this._refundedAt = new Date()
+  }
+
+  private transitionTo(to: OrderStatus): void {
+    const allowed = VALID_TRANSITIONS[this._status] ?? []
+    if (!allowed.includes(to)) {
+      throw new InvalidOrderStatusTransitionError(this._status, to)
+    }
+    this._status = to
+    this.touch()
+  }
+
+  private touch(): void {
+    this._updatedAt = new Date()
+  }
+
+  get totalPrice(): Price {
+    return Price.create(
+      this._unitPrice.amountInCents * this._quantity +
+        this._freightPrice.amountInCents,
+    )
+  }
+
+  get id(): string {
+    return this._id
+  }
+  get buyerId(): string {
+    return this._buyerId
+  }
+  get productId(): string {
+    return this._productId
+  }
+  get unitPrice(): Price {
+    return this._unitPrice
+  }
+  get quantity(): number {
+    return this._quantity
+  }
+  get freightPrice(): Price {
+    return this._freightPrice
+  }
+  get status(): OrderStatus {
+    return this._status
+  }
+  get paymentId(): string | null {
+    return this._paymentId
+  }
+  get paymentMethod(): PaymentMethod {
+    return this._paymentMethod
+  }
+  get shipTo(): ShipTo {
+    return this._shipTo
+  }
+  get freightServiceId(): number | null {
+    return this._freightServiceId
+  }
+  get paidAt(): Date | null {
+    return this._paidAt
+  }
+  get shippedAt(): Date | null {
+    return this._shippedAt
+  }
+  get deliveredAt(): Date | null {
+    return this._deliveredAt
+  }
+  get cancelledAt(): Date | null {
+    return this._cancelledAt
+  }
+  get refundedAt(): Date | null {
+    return this._refundedAt
+  }
+  get createdAt(): Date {
+    return this._createdAt
+  }
+  get updatedAt(): Date {
+    return this._updatedAt
+  }
+}
+
+
+===== src/modules/orders/domain/entities/shipment.entity.ts =====
+import { DomainError } from '../../../../common/errors/domain-error'
+import type { ShipmentStatus } from '../value-objects/shipment-status.vo'
+
+export class InvalidShipmentStatusTransitionError extends DomainError {
+  constructor(from: ShipmentStatus, to: ShipmentStatus) {
+    super(`Transição inválida de status do envio: ${from} → ${to}`, 400)
+  }
+}
+
+export class InvalidShipmentError extends DomainError {
+  constructor(message: string) {
+    super(message, 400)
+  }
+}
+
+const VALID_TRANSITIONS: Record<ShipmentStatus, ShipmentStatus[]> = {
+  PENDING: ['POSTED', 'CANCELLED'],
+  POSTED: ['DELIVERED', 'CANCELLED'],
+  DELIVERED: [],
+  CANCELLED: [],
+}
+
+export interface CreateShipmentProps {
+  id: string
+  orderId: string
+  meOrderId: string
+  protocol: string
+  serviceId: number
+  tracking?: string | null
+  trackingUrl?: string | null
+  labelUrl?: string | null
+}
+
+export interface ReconstructShipmentProps {
+  id: string
+  orderId: string
+  meOrderId: string
+  protocol: string
+  serviceId: number
+  status: ShipmentStatus
+  tracking: string | null
+  trackingUrl: string | null
+  labelUrl: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+/**
+ * Envio (etiqueta Melhor Envio) — 1:1 com um `Order`.
+ * Registra o id da etiqueta no ME (`meOrderId`) e o rastreio, para o `TrackOrder`
+ * consultar a posição ao vivo via `ShippingGatewayPort.track`.
+ */
+export class Shipment {
+  private constructor(
+    private readonly _id: string,
+    private readonly _orderId: string,
+    private readonly _meOrderId: string,
+    private readonly _protocol: string,
+    private readonly _serviceId: number,
+    private _status: ShipmentStatus,
+    private _tracking: string | null,
+    private _trackingUrl: string | null,
+    private _labelUrl: string | null,
+    private readonly _createdAt: Date,
+    private _updatedAt: Date,
+  ) {}
+
+  static create(props: CreateShipmentProps): Shipment {
+    if (!props.id?.trim()) throw new InvalidShipmentError('id inválido')
+    if (!props.orderId?.trim()) {
+      throw new InvalidShipmentError('orderId inválido')
+    }
+    if (!props.meOrderId?.trim()) {
+      throw new InvalidShipmentError('meOrderId inválido')
+    }
+    if (!props.protocol?.trim()) {
+      throw new InvalidShipmentError('protocol inválido')
+    }
+    if (!Number.isInteger(props.serviceId) || props.serviceId < 1) {
+      throw new InvalidShipmentError('serviceId inválido')
+    }
+    const now = new Date()
+    return new Shipment(
+      props.id,
+      props.orderId,
+      props.meOrderId,
+      props.protocol,
+      props.serviceId,
+      'PENDING',
+      props.tracking ?? null,
+      props.trackingUrl ?? null,
+      props.labelUrl ?? null,
+      now,
+      now,
+    )
+  }
+
+  static reconstitute(props: ReconstructShipmentProps): Shipment {
+    return new Shipment(
+      props.id,
+      props.orderId,
+      props.meOrderId,
+      props.protocol,
+      props.serviceId,
+      props.status,
+      props.tracking,
+      props.trackingUrl,
+      props.labelUrl,
+      props.createdAt,
+      props.updatedAt,
+    )
+  }
+
+  /** PENDING → POSTED (etiqueta postada na transportadora). */
+  markPosted(): void {
+    this.transitionTo('POSTED')
+  }
+
+  /** POSTED → DELIVERED (entrega confirmada). */
+  markDelivered(): void {
+    this.transitionTo('DELIVERED')
+  }
+
+  private transitionTo(to: ShipmentStatus): void {
+    const allowed = VALID_TRANSITIONS[this._status] ?? []
+    if (!allowed.includes(to)) {
+      throw new InvalidShipmentStatusTransitionError(this._status, to)
+    }
+    this._status = to
+    this._updatedAt = new Date()
+  }
+
+  get id(): string {
+    return this._id
+  }
+  get orderId(): string {
+    return this._orderId
+  }
+  get meOrderId(): string {
+    return this._meOrderId
+  }
+  get protocol(): string {
+    return this._protocol
+  }
+  get serviceId(): number {
+    return this._serviceId
+  }
+  get status(): ShipmentStatus {
+    return this._status
+  }
+  get tracking(): string | null {
+    return this._tracking
+  }
+  get trackingUrl(): string | null {
+    return this._trackingUrl
+  }
+  get labelUrl(): string | null {
+    return this._labelUrl
+  }
+  get createdAt(): Date {
+    return this._createdAt
+  }
+  get updatedAt(): Date {
+    return this._updatedAt
+  }
+}
+
+
+===== src/common/ports/shipping-gateway.port.ts =====
+/**
+ * Porta do gateway de frete (Melhor Envio) — desacoplada do módulo `orders`.
+ *
+ * Expõe o pipeline de logística (cotação → carrinho → checkout → geração →
+ * impressão → rastreio). A implementação real (`MelhorEnvioGateway`) gerencia o
+ * OAuth (refresh-on-401) via `ShippingTokenStorePort`; sem configuração, o
+ * módulo provê `MockShippingGateway`.
+ */
+
+export interface ShippingAddress {
+  name: string
+  phone: string
+  email: string
+  document?: string
+  postalCode: string
+  address: string
+  city: string
+  stateAbbr: string
+}
+
+export interface ShippingVolume {
+  width: number
+  height: number
+  length: number
+  weight: number
+  insurance: number
+  quantity?: number
+}
+
+export interface ShippingProduct {
+  id: string
+  width: number
+  height: number
+  length: number
+  weight: number
+  insuranceValue: number
+  quantity: number
+}
+
+export interface CalculateQuoteInput {
+  fromPostalCode: string
+  toPostalCode: string
+  products?: ShippingProduct[]
+  volumes?: ShippingVolume[]
+  services?: string
+}
+
+export interface ShippingQuote {
+  id: number
+  name: string
+  priceCents: number
+  customPriceCents: number
+  discountCents: number
+  currency: string
+  deliveryTime: number
+  customDeliveryTime: number
+  company: { id: number; name: string; picture: string }
+}
+
+export interface CreateShipmentInput {
+  service: number
+  from: ShippingAddress
+  to: ShippingAddress
+  products?: ShippingProduct[]
+  volumes?: ShippingVolume[]
+}
+
+export interface CreateShipmentResult {
+  orderId: string
+  protocol: string
+}
+
+export interface TrackingInfo {
+  id: string
+  protocol: string
+  status: string
+  tracking: string | null
+  melhorenvioTracking: string | null
+  createdAt: string
+  paidAt: string | null
+  generatedAt: string | null
+  postedAt: string | null
+  deliveredAt: string | null
+  canceledAt: string | null
+  expiredAt: string | null
+}
+
+export interface ShippingGatewayPort {
+  calculateQuote(input: CalculateQuoteInput): Promise<ShippingQuote[]>
+  createShipment(input: CreateShipmentInput): Promise<CreateShipmentResult>
+  payShipment(orderIds: string[]): Promise<void>
+  generateLabel(orderIds: string[]): Promise<void>
+  printLabel(mode: 'private' | 'public', orderIds: string[]): Promise<string>
+  track(orderIds: string[]): Promise<Record<string, TrackingInfo>>
+}
+
+export const SHIPPING_GATEWAY_PORT = Symbol('SHIPPING_GATEWAY_PORT')
+
+
+===== src/common/ports/payment-gateway.port.ts =====
+import type { PaymentMethod } from '../value-objects/payment-method.vo'
+import type { PaymentStatus } from '../value-objects/payment-status.vo'
+
+export interface CreatePaymentInput {
+  amountCents: number
+  method: PaymentMethod
+  payerEmail: string
+  description: string
+  /** Cartão: token gerado no front pelo MercadoPago.js (Secure Fields). */
+  cardToken?: string
+  /** Cartão: bandeira (visa, master, amex, elo, hipercard...). */
+  cardPaymentMethodId?: string
+  /** Cartão: número de parcelas (1..12). */
+  cardInstallments?: number
+  /** Cartão: banco emissor (id do issuer). */
+  cardIssuerId?: string
+  /** Documento do pagador (obrigatório para boleto/cartão no MP). */
+  payerIdentificationType?: string
+  payerIdentificationNumber?: string
+  payerFirstName?: string
+  payerLastName?: string
+}
+
+export interface CreatePaymentResult {
+  providerPaymentId: string
+  status: PaymentStatus
+  /** PIX */
+  pixQrCode?: string
+  pixQrCodeBase64?: string
+  /** BOLETO */
+  boletoUrl?: string
+  boletoBarcode?: string
+  /** CARTÃO */
+  cardApproved?: boolean
+}
+
+export interface GetPaymentResult {
+  id: string
+  status: PaymentStatus
+  paymentMethod: PaymentMethod
+}
+
+/**
+ * Porta do gateway de pagamento (checkout próprio transparente — modelo B).
+ * O gateway só cobra avulso e notifica via webhook; a recorrência é nossa.
+ * `getPayment` resolve o status real do pagamento — o payload da notificação
+ * do Mercado Pago NÃO embute o `status`, então o webhook consulta o gateway.
+ */
+export interface PaymentGatewayPort {
+  createPayment(input: CreatePaymentInput): Promise<CreatePaymentResult>
+  getPayment(id: string): Promise<GetPaymentResult>
+}
+
+export const PAYMENT_GATEWAY_PORT = Symbol('PAYMENT_GATEWAY_PORT')
+
+
+===== src/common/ports/payment-webhook-validator.port.ts =====
+/**
+ * Porta de validação de assinatura de webhook de pagamento.
+ *
+ * Implementação real (formato atual do Mercado Pago): HMAC-SHA256 sobre o
+ * manifesto `id:<data.id>;request-id:<x-request-id>;ts:<ts>;` e comparação com
+ * a parte `v1` do header `x-signature` (formato `ts=...,v1=...`).
+ */
+export interface PaymentWebhookValidatorPort {
+  validate(
+    headers: Record<string, string | string[] | undefined>,
+    dataId: string,
+  ): boolean
+}
+
+export const PAYMENT_WEBHOOK_VALIDATOR_PORT = Symbol(
+  'PAYMENT_WEBHOOK_VALIDATOR_PORT',
+)
+
+
+===== src/modules/products/products.module.ts =====
+import { Module } from '@nestjs/common'
+import { PRODUCT_REPOSITORY_PORT } from './domain/repositories/product.repository.port'
+import { PrismaProductRepository } from './infrastructure/repositories/prisma-product.repository'
+import { GetPingenteProductUseCase } from './application/use-cases/get-pingente-product.use-case'
+import { UpdateProductUseCase } from './application/use-cases/update-product.use-case'
+import { ProductsController } from './presentation/controllers/products.controller'
+import { AdminProductsController } from './presentation/controllers/admin-products.controller'
+
+/**
+ * Módulo de produtos (catálogo de venda — pingente).
+ * Provê a implementação concreta atrás da porta (DIP) e exporta a porta para
+ * consumo por outros módulos (ex.: `orders` na V.4).
+ */
+@Module({
+  controllers: [ProductsController, AdminProductsController],
+  providers: [
+    PrismaProductRepository,
+    { provide: PRODUCT_REPOSITORY_PORT, useClass: PrismaProductRepository },
+    GetPingenteProductUseCase,
+    UpdateProductUseCase,
+  ],
+  exports: [PRODUCT_REPOSITORY_PORT],
+})
+export class ProductsModule {}
+
+
+===== src/modules/orders/application/dtos/list-orders.schema.ts =====
+import { z } from 'zod'
+import { ORDER_STATUS_VALUES } from '../../domain/value-objects/order-status.vo'
+
+/**
+ * Query params da listagem de pedidos (admin e "Meus pedidos").
+ *
+ * - `page`/`limit` → paginação.
+ * - `status`   → filtro por status (enum `OrderStatus`).
+ */
+export const listOrdersSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  status: z.enum(ORDER_STATUS_VALUES).optional(),
+})
+
+export type ListOrdersDto = z.infer<typeof listOrdersSchema>
+
+
+===== src/modules/orders/application/dtos/create-order.schema.ts =====
+import { z } from 'zod'
+
+export const shipToSchema = z.object({
+  postalCode: z.string().min(8),
+  street: z.string().trim().min(1),
+  number: z.string().trim().min(1),
+  city: z.string().trim().min(1),
+  state: z.string().trim().min(2).max(2),
+  name: z.string().trim().min(1),
+  phone: z.string().trim().min(8),
+})
+
+/**
+ * DTO do checkout da venda (`POST /orders`).
+ *
+ * - PIX: só `productId` + `shipTo` + `freightServiceId` + `paymentMethod`.
+ * - BOLETO/CARTÃO: exige `payerIdentificationNumber` (CPF/CNPJ do pagador).
+ * - CARTÃO: exige `cardToken`, `cardPaymentMethodId` (bandeira) e `cardIssuerId`.
+ */
+export const createOrderSchema = z
+  .object({
+    productId: z.string().trim().min(1),
+    quantity: z.coerce.number().int().min(1).max(10).default(1),
+    shipTo: shipToSchema,
+    freightServiceId: z.coerce.number().int().min(1),
+    paymentMethod: z.enum(['PIX', 'CARD', 'BOLETO']),
+    cardToken: z.string().min(1).optional(),
+    cardPaymentMethodId: z.string().min(1).optional(),
+    cardInstallments: z.coerce.number().int().min(1).max(12).optional(),
+    cardIssuerId: z.string().min(1).optional(),
+    payerIdentificationType: z.string().min(1).optional(),
+    payerIdentificationNumber: z.string().min(1).optional(),
+    payerFirstName: z.string().min(1).optional(),
+    payerLastName: z.string().min(1).optional(),
+  })
+  .refine(data => data.paymentMethod !== 'CARD' || !!data.cardToken, {
+    message: 'cardToken é obrigatório para pagamento com cartão',
+    path: ['cardToken'],
+  })
+  .refine(
+    data =>
+      data.paymentMethod !== 'CARD' ||
+      (!!data.cardPaymentMethodId && !!data.cardIssuerId),
+    {
+      message:
+        'cardPaymentMethodId e cardIssuerId são obrigatórios para cartão',
+      path: ['cardPaymentMethodId'],
+    },
+  )
+  .refine(
+    data =>
+      !['CARD', 'BOLETO'].includes(data.paymentMethod) ||
+      !!data.payerIdentificationNumber,
+    {
+      message: 'CPF/CNPJ é obrigatório para cartão e boleto',
+      path: ['payerIdentificationNumber'],
+    },
+  )
+
+export type CreateOrderDto = z.infer<typeof createOrderSchema>
+
+
+===== src/common/decorators/current-user.decorator.ts =====
+import { createParamDecorator, ExecutionContext } from '@nestjs/common'
+
+export interface RequestUser {
+  sub: string
+  email: string
+  roles?: string[]
+  permissions?: string[]
+}
+
+interface RequestWithUser {
+  user?: RequestUser
+}
+
+/**
+ * Extrai o usuário autenticado (injetado pelo JwtStrategy) da request.
+ * Uso: `@CurrentUser() user: RequestUser`.
+ */
+export const CurrentUser = createParamDecorator(
+  (_data: unknown, ctx: ExecutionContext): RequestUser | undefined => {
+    const request = ctx.switchToHttp().getRequest<RequestWithUser>()
+    return request.user
+  },
+)
+
+
+===== src/common/decorators/roles.decorator.ts =====
+import { SetMetadata } from '@nestjs/common'
+
+export const ROLES_KEY = 'roles'
+/** Exige que o usuário tenha uma das roles indicadas. */
+export const Roles = (...roles: string[]) => SetMetadata(ROLES_KEY, roles)
+
+
+===== src/common/decorators/public.decorator.ts =====
+import { SetMetadata } from '@nestjs/common'
+
+export const IS_PUBLIC_KEY = 'isPublic'
+/** Marca uma rota como pública (ignorada pelo guard de autenticação). */
+export const Public = () => SetMetadata(IS_PUBLIC_KEY, true)
+
+
+===== src/common/pipes/zod-validation.pipe.ts =====
+import { BadRequestException, Injectable, PipeTransform } from '@nestjs/common'
+import type { ZodSchema } from 'zod'
+
+/**
+ * Pipe de validação baseado em Zod (substitui class-validator).
+ * Uso: `@Body(new ZodValidationPipe(loginSchema)) body: LoginDto`.
+ */
+@Injectable()
+export class ZodValidationPipe<T> implements PipeTransform {
+  constructor(private readonly schema: ZodSchema<T>) {}
+
+  transform(value: unknown): T {
+    const result = this.schema.safeParse(value)
+    if (!result.success) {
+      throw new BadRequestException({
+        statusCode: 400,
+        message: 'Validação falhou',
+        errors: result.error.flatten().fieldErrors,
+      })
+    }
+    return result.data
+  }
+}

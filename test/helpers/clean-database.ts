@@ -8,6 +8,10 @@ import type { PrismaService } from '../../src/infrastructure/database/prisma.ser
  * `user.deleteMany()` falha (P2003) se houver pets/batches de suítes anteriores.
  */
 export async function cleanDatabase(prisma: PrismaService): Promise<void> {
+  await prisma.shippingCredential.deleteMany()
+  await prisma.shipment.deleteMany()
+  await prisma.order.deleteMany()
+  await prisma.product.deleteMany()
   await prisma.paymentTransaction.deleteMany()
   await prisma.subscription.deleteMany()
   await prisma.planFeature.deleteMany()

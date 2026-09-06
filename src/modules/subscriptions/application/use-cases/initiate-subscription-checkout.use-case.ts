@@ -9,10 +9,10 @@ import { PAYMENT_TRANSACTION_REPOSITORY_PORT } from '../../domain/repositories/p
 import type { PaymentTransactionRepositoryPort } from '../../domain/repositories/payment-transaction.repository.port'
 import { SUBSCRIPTION_REPOSITORY_PORT } from '../../domain/repositories/subscription.repository.port'
 import type { SubscriptionRepositoryPort } from '../../domain/repositories/subscription.repository.port'
-import { PAYMENT_GATEWAY_PORT } from '../../domain/gateways/payment-gateway.port'
-import type { PaymentGatewayPort } from '../../domain/gateways/payment-gateway.port'
-import type { PaymentMethod } from '../../domain/value-objects/payment-method.vo'
-import type { PaymentStatus } from '../../domain/value-objects/payment-status.vo'
+import { PAYMENT_GATEWAY_PORT } from '../../../../common/ports/payment-gateway.port'
+import type { PaymentGatewayPort } from '../../../../common/ports/payment-gateway.port'
+import type { PaymentMethod } from '../../../../common/value-objects/payment-method.vo'
+import type { PaymentStatus } from '../../../../common/value-objects/payment-status.vo'
 import { PaymentTransaction } from '../../domain/entities/payment-transaction.entity'
 
 export interface InitiateSubscriptionCheckoutInput {

@@ -5,7 +5,7 @@ import type {
   CreatePaymentResult,
   GetPaymentResult,
   PaymentGatewayPort,
-} from '../../domain/gateways/payment-gateway.port'
+} from '../../common/ports/payment-gateway.port'
 
 /**
  * Implementação mock do `PaymentGatewayPort` (desenvolvimento/teste).
