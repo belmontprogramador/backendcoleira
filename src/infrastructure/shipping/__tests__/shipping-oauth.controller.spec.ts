@@ -8,23 +8,20 @@ describe('ShippingOAuthController', () => {
     return new ShippingOAuthController(oauth as never)
   }
 
-  it('redireciona para a URL de autorização', async () => {
+  it('devolve a URL de autorização em JSON', () => {
     oauth.authorize.mockReturnValue('https://me/oauth/authorize')
     const controller = makeController()
-    const res = { redirect: jest.fn() }
 
-    await controller.authorize(res as never)
+    const result = controller.authorize()
 
-    expect(res.redirect).toHaveBeenCalledWith('https://me/oauth/authorize')
+    expect(result).toEqual({ url: 'https://me/oauth/authorize' })
   })
 
-  it('lança 400 quando a ME não está configurada', async () => {
+  it('lança 400 quando a ME não está configurada', () => {
     oauth.authorize.mockReturnValue(null)
     const controller = makeController()
 
-    await expect(
-      controller.authorize({ redirect: jest.fn() } as never),
-    ).rejects.toThrow(BadRequestException)
+    expect(() => controller.authorize()).toThrow(BadRequestException)
   })
 
   it('callback persiste e retorna connected', async () => {

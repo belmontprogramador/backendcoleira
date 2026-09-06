@@ -4,9 +4,7 @@ import {
   Get,
   Logger,
   Query,
-  Res,
 } from '@nestjs/common'
-import type { Response } from 'express'
 import { ShippingOAuthService } from './shipping-oauth.service'
 import { Public } from '../../common/decorators/public.decorator'
 import { Roles } from '../../common/decorators/roles.decorator'
@@ -14,8 +12,11 @@ import { Roles } from '../../common/decorators/roles.decorator'
 /**
  * Rotas do OAuth da Melhor Envio (Authorization Code).
  *
- * - `GET /admin/shipping/oauth/authorize` (SUPER_ADMIN) — redireciona o
- *   navegador para a autorização da ME.
+ * - `GET /admin/shipping/oauth/authorize` (SUPER_ADMIN) — devolve a URL de
+ *   autorização (`{ url }`) para o painel navegar. O painel é um static export
+ *   (Cloudflare Pages) e não tem rota de servidor para resolver redirect com
+ *   `Authorization: Bearer`; por isso retornamos a URL em JSON e o client
+ *   navega via `window.location`.
  * - `GET /api/shipping/oauth/callback` (público) — recebe o `code`, troca por
  *   tokens e persiste a credencial única.
  */
@@ -27,15 +28,15 @@ export class ShippingOAuthController {
 
   @Roles('SUPER_ADMIN')
   @Get('admin/shipping/oauth/authorize')
-  async authorize(@Res() res: Response): Promise<void> {
+  authorize(): { url: string } {
     const url = this.oauth.authorize()
     if (!url) {
       throw new BadRequestException(
         'Melhor Envio não configurada (MELHOR_ENVIO_CLIENT_ID/SECRET/BASE_URL ausentes)',
       )
     }
-    this.logger.log('Redirecionando para autorização OAuth da Melhor Envio')
-    res.redirect(url)
+    this.logger.log('Gerando URL de autorização OAuth da Melhor Envio')
+    return { url }
   }
 
   @Public()
