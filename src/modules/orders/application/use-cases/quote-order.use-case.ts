@@ -33,7 +33,13 @@ export class QuoteOrderUseCase {
     return this.shipping.calculateQuote({
       fromPostalCode: this.originPostalCode,
       toPostalCode,
-      products: [{ ...PINGENTE_PACKAGE, quantity: input.quantity }],
+      products: [
+        {
+          ...PINGENTE_PACKAGE,
+          quantity: input.quantity,
+          insuranceValue: PINGENTE_PACKAGE.unitaryValue * input.quantity,
+        },
+      ],
     })
   }
 }

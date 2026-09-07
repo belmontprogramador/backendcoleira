@@ -19,7 +19,7 @@ export const PINGENTE_PACKAGE: ShippingProduct = {
   height: 5,
   length: 20,
   weight: 0.3,
-  insuranceValue: 0,
+  insuranceValue: 19.9,
   unitaryValue: 19.9,
   quantity: 1,
 }

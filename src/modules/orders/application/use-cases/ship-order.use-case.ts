@@ -162,6 +162,7 @@ export class ShipOrderUseCase {
           ...PINGENTE_PACKAGE,
           quantity: order.quantity,
           unitaryValue: order.unitPrice.amountInCents / 100,
+          insuranceValue: (order.unitPrice.amountInCents / 100) * order.quantity,
         },
       ],
     })
