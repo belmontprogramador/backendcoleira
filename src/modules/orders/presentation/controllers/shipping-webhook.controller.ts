@@ -47,7 +47,13 @@ export class ShippingWebhookController {
 
     const payload = JSON.parse(rawBody) as {
       event?: string
-      data?: { id?: string }
+      data?: {
+        id?: string
+        tracking?: string
+        tracking_url?: string
+        protocol?: string
+        status?: string
+      }
     }
     if (!payload.event || !payload.data?.id) {
       return { received: true }
@@ -55,7 +61,13 @@ export class ShippingWebhookController {
 
     await this.process.execute({
       event: payload.event,
-      data: { id: payload.data.id },
+      data: {
+        id: payload.data.id,
+        tracking: payload.data.tracking,
+        trackingUrl: payload.data.tracking_url,
+        protocol: payload.data.protocol,
+        status: payload.data.status,
+      },
     })
     return { received: true }
   }

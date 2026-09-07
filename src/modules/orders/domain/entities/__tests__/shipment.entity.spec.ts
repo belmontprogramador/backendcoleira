@@ -73,4 +73,20 @@ describe('Shipment', () => {
     expect(s.tracking).toBe('BR123')
     expect(s.meOrderId).toBe('me-1')
   })
+
+  it('applyTracking atualiza o rastreio e retorna true quando muda', () => {
+    const s = Shipment.create(baseProps)
+    const changed = s.applyTracking('BR123456789', 'https://track/1')
+    expect(changed).toBe(true)
+    expect(s.tracking).toBe('BR123456789')
+    expect(s.trackingUrl).toBe('https://track/1')
+  })
+
+  it('applyTracking ignora vazios e retorna false quando nada muda', () => {
+    const s = Shipment.create({ ...baseProps, tracking: 'BR123' })
+    expect(s.applyTracking(undefined, null)).toBe(false)
+    expect(s.applyTracking('', '')).toBe(false)
+    expect(s.tracking).toBe('BR123')
+    expect(s.trackingUrl).toBeNull()
+  })
 })

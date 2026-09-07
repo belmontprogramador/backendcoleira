@@ -28,9 +28,45 @@ describe('ShippingWebhookController', () => {
     expect(validator.validate).toHaveBeenCalledWith(rawBody, 'sig')
     expect(process.execute).toHaveBeenCalledWith({
       event: 'order.delivered',
-      data: { id: 'me-1' },
+      data: {
+        id: 'me-1',
+        tracking: undefined,
+        trackingUrl: undefined,
+        protocol: undefined,
+        status: undefined,
+      },
     })
     expect(result).toEqual({ received: true })
+  })
+
+  it('mapeia tracking e tracking_url do payload para o use case', async () => {
+    validator.validate.mockReturnValue(true)
+    const controller = makeController()
+    const rawBody = JSON.stringify({
+      event: 'order.posted',
+      data: {
+        id: 'me-1',
+        tracking: 'BR123456789',
+        tracking_url: 'https://track/me-1',
+        protocol: 'P1',
+      },
+    })
+
+    await controller.handle(
+      { rawBody: Buffer.from(rawBody), body: {} } as never,
+      { 'x-me-signature': 'sig' },
+    )
+
+    expect(process.execute).toHaveBeenCalledWith({
+      event: 'order.posted',
+      data: {
+        id: 'me-1',
+        tracking: 'BR123456789',
+        trackingUrl: 'https://track/me-1',
+        protocol: 'P1',
+        status: undefined,
+      },
+    })
   })
 
   it('lança 401 para assinatura inválida', async () => {

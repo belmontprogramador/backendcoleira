@@ -121,6 +121,27 @@ export class Shipment {
     this.transitionTo('DELIVERED')
   }
 
+  /**
+   * Atualiza o rastreio (código + URL) quando o webhook da Melhor Envio informa
+   * novos valores. Só sobrescreve com valores não-vazios; retorna `true` se
+   * algum campo mudou (para o use case saber se precisa persistir).
+   */
+  applyTracking(tracking?: string | null, trackingUrl?: string | null): boolean {
+    let changed = false
+    if (tracking && tracking !== this._tracking) {
+      this._tracking = tracking
+      changed = true
+    }
+    if (trackingUrl && trackingUrl !== this._trackingUrl) {
+      this._trackingUrl = trackingUrl
+      changed = true
+    }
+    if (changed) {
+      this._updatedAt = new Date()
+    }
+    return changed
+  }
+
   private transitionTo(to: ShipmentStatus): void {
     const allowed = VALID_TRANSITIONS[this._status] ?? []
     if (!allowed.includes(to)) {

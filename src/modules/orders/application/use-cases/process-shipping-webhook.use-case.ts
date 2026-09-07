@@ -68,6 +68,13 @@ export class ProcessShippingWebhookUseCase {
     let shipmentChanged = false
     let orderChanged = false
 
+    // Rastreio — qualquer evento pode trazer `tracking`/`tracking_url`.
+    const trackingChanged = shipment.applyTracking(
+      input.data.tracking,
+      input.data.trackingUrl,
+    )
+    shipmentChanged = shipmentChanged || trackingChanged
+
     if (input.event === 'order.posted') {
       if (shipment.status === 'PENDING') {
         shipment.markPosted()

@@ -104,6 +104,46 @@ describe('ProcessShippingWebhookUseCase', () => {
     expect(orders.save).not.toHaveBeenCalled()
   })
 
+  it('grava tracking/tracking_url vindos do webhook (order.posted)', async () => {
+    const shipment = Shipment.create({
+      id: 'shp-1',
+      orderId: 'ord-1',
+      meOrderId: 'me-1',
+      protocol: 'P1',
+      serviceId: 1,
+    })
+    const { shipments, useCase } = build({ shipment })
+
+    const result = await useCase.execute({
+      event: 'order.posted',
+      data: {
+        id: 'me-1',
+        tracking: 'BR123456789',
+        trackingUrl: 'https://track/me-1',
+      },
+    })
+
+    expect(result.processed).toBe(true)
+    expect(shipment.tracking).toBe('BR123456789')
+    expect(shipment.trackingUrl).toBe('https://track/me-1')
+    expect(shipments.save).toHaveBeenCalled()
+  })
+
+  it('grava tracking mesmo sem transição de status (shipment já POSTED)', async () => {
+    const { shipments, useCase } = build() // shipment POSTED por padrão
+
+    const result = await useCase.execute({
+      event: 'order.posted',
+      data: { id: 'me-1', tracking: 'BR999' },
+    })
+
+    expect(result.processed).toBe(true)
+    expect(result.shipmentStatus).toBe('POSTED')
+    expect(shipments.save).toHaveBeenCalled()
+    const saved = shipments.save.mock.calls[0][0] as Shipment
+    expect(saved.tracking).toBe('BR999')
+  })
+
   it('retorna processed:false quando não há shipment (idempotente)', async () => {
     const { useCase } = build({ shipment: null })
 
