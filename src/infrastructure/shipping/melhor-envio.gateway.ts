@@ -101,9 +101,18 @@ export class MelhorEnvioGateway implements ShippingGatewayPort {
     const quotes = await this.withToken((token) =>
       this.client.calculateShipping(body, token),
     )
-    return quotes
-      .map((q) => this.toQuote(q))
-      .filter((q): q is ShippingQuote => q !== null)
+    const result: ShippingQuote[] = []
+    for (const q of quotes) {
+      const mapped = this.toQuote(q)
+      if (mapped) {
+        result.push(mapped)
+      } else if (q.error) {
+        this.logger.warn(
+          `Melhor Envio não cotou ${q.name} (${q.company.name}): ${q.error}`,
+        )
+      }
+    }
+    return result
   }
 
   async createShipment(
