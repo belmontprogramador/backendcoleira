@@ -22,8 +22,15 @@ import type {
   TrackingInfo as RawTrackingInfo,
 } from './melhor-envio.client'
 
-function toCents(value: string | number): number {
-  return Math.round(parseFloat(String(value)) * 100)
+function toCents(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined || value === '') {
+    return null
+  }
+  const parsed = parseFloat(String(value))
+  if (Number.isNaN(parsed)) {
+    return null
+  }
+  return Math.round(parsed * 100)
 }
 
 function toAddress(address: ShippingAddress): CartAddress {
@@ -94,7 +101,9 @@ export class MelhorEnvioGateway implements ShippingGatewayPort {
     const quotes = await this.withToken((token) =>
       this.client.calculateShipping(body, token),
     )
-    return quotes.map((q) => this.toQuote(q))
+    return quotes
+      .map((q) => this.toQuote(q))
+      .filter((q): q is ShippingQuote => q !== null)
   }
 
   async createShipment(
@@ -138,16 +147,24 @@ export class MelhorEnvioGateway implements ShippingGatewayPort {
     return this.mapTracking(raw)
   }
 
-  private toQuote(q: Quotation): ShippingQuote {
+  private toQuote(q: Quotation): ShippingQuote | null {
+    // A ME exige usar `custom_price` (reflete taxas/descontos), com fallback
+    // para `price`. Quando a transportadora NÃO cota, ambos vêm `null`.
+    const effectivePrice = toCents(q.custom_price) ?? toCents(q.price)
+    if (effectivePrice === null) {
+      return null
+    }
+    const effectiveDeliveryTime =
+      q.custom_delivery_time ?? q.delivery_time ?? 0
     return {
       id: q.id,
       name: q.name,
-      priceCents: toCents(q.price),
-      customPriceCents: toCents(q.custom_price),
-      discountCents: toCents(q.discount),
-      currency: q.currency,
-      deliveryTime: q.delivery_time,
-      customDeliveryTime: q.custom_delivery_time,
+      priceCents: effectivePrice,
+      customPriceCents: effectivePrice,
+      discountCents: toCents(q.discount) ?? 0,
+      currency: q.currency ?? 'R$',
+      deliveryTime: effectiveDeliveryTime,
+      customDeliveryTime: effectiveDeliveryTime,
       company: q.company,
     }
   }

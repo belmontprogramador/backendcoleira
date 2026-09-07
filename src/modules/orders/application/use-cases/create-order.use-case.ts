@@ -108,9 +108,7 @@ export class CreateOrderUseCase {
       )
     }
 
-    const freightPrice = Price.create(
-      quote.customPriceCents ?? quote.priceCents,
-    )
+    const freightPrice = Price.create(quote.priceCents)
 
     const order = Order.create({
       id: randomUUID(),

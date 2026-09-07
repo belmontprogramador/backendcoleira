@@ -76,17 +76,22 @@ export interface CalculateQuotationInput {
   services?: string
 }
 
-/** Oferta de frete retornada por `calculate` (raw, formato ME). */
+/**
+ * Oferta de frete retornada por `calculate` (raw, formato ME).
+ * Campos anuláveis: quando a transportadora não consegue cotar (dimensões/peso
+ * fora do padrão), a ME devolve `price: null` (e `error`), não "0".
+ */
 export interface Quotation {
   id: number
   name: string
-  price: string
-  custom_price: string
-  discount: string
-  currency: string
-  delivery_time: number
-  custom_delivery_time: number
+  price: string | null
+  custom_price: string | null
+  discount: string | null
+  currency: string | null
+  delivery_time: number | null
+  custom_delivery_time: number | null
   company: { id: number; name: string; picture: string }
+  error?: string | null
 }
 
 /** Item de rastreio retornado por `POST /api/v2/me/shipment/tracking`. */

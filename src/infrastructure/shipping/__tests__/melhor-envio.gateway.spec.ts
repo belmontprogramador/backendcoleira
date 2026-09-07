@@ -78,6 +78,50 @@ describe('MelhorEnvioGateway', () => {
         'at-1',
       )
     })
+
+    it('filtra quotes sem preco (transportadora nao cotou)', async () => {
+      const client = {
+        calculateShipping: jest.fn().mockResolvedValue([
+          {
+            id: 3,
+            name: '.Package',
+            price: null,
+            custom_price: null,
+            discount: null,
+            currency: null,
+            delivery_time: null,
+            custom_delivery_time: null,
+            company: { id: 2, name: 'Jadlog', picture: 'x' },
+          },
+          {
+            id: 1,
+            name: 'PAC',
+            price: '18.60',
+            custom_price: '18.60',
+            discount: '4.16',
+            currency: 'R$',
+            delivery_time: 6,
+            custom_delivery_time: 6,
+            company: { id: 1, name: 'Correios', picture: 'x' },
+          },
+        ]),
+      }
+      const tokenStore = {
+        get: jest.fn().mockResolvedValue(credential),
+        save: jest.fn(),
+      }
+
+      const gateway = makeGateway(client, tokenStore)
+      const quotes = await gateway.calculateQuote({
+        fromPostalCode: 'x',
+        toPostalCode: 'y',
+      })
+
+      expect(quotes).toHaveLength(1)
+      expect(quotes[0]).toEqual(
+        expect.objectContaining({ id: 1, name: 'PAC', priceCents: 1860 }),
+      )
+    })
   })
 
   describe('createShipment', () => {
