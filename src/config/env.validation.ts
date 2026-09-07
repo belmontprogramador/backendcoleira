@@ -47,6 +47,13 @@ export const envSchema = z.object({
   MELHOR_ENVIO_REDIRECT_URI: z.string().optional(),
   MELHOR_ENVIO_BASE_URL: z.string().optional(),
   MELHOR_ENVIO_FROM_POSTAL_CODE: z.string().optional(),
+  MELHOR_ENVIO_FROM_NAME: z.string().optional(),
+  MELHOR_ENVIO_FROM_EMAIL: z.string().optional(),
+  MELHOR_ENVIO_FROM_PHONE: z.string().optional(),
+  MELHOR_ENVIO_FROM_DOCUMENT: z.string().optional(),
+  MELHOR_ENVIO_FROM_ADDRESS: z.string().optional(),
+  MELHOR_ENVIO_FROM_CITY: z.string().optional(),
+  MELHOR_ENVIO_FROM_STATE: z.string().optional(),
   SHIPPING_TOKEN_ENC_KEY: z
     .string()
     .regex(

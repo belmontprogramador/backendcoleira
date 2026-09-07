@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { SHIPPING_GATEWAY_PORT } from '../../common/ports/shipping-gateway.port'
 import type {
+  ShippingAddress,
   ShippingGatewayPort,
 } from '../../common/ports/shipping-gateway.port'
 import { SHIPPING_TOKEN_CIPHER_PORT } from './shipping-token-cipher.port'
@@ -10,7 +11,10 @@ import { SHIPPING_TOKEN_STORE_PORT } from './shipping-token-store.port'
 import type { ShippingTokenStorePort } from './shipping-token-store.port'
 import { PrismaShippingTokenStore } from './prisma-shipping-token.store'
 import { SHIPPING_WEBHOOK_VALIDATOR_PORT } from './shipping-webhook-validator.port'
-import { SHIPPING_ORIGIN_POSTAL_CODE_PORT } from '../../common/ports/shipping-origin.port'
+import {
+  SHIPPING_ORIGIN_POSTAL_CODE_PORT,
+  SHIPPING_ORIGIN_PORT,
+} from '../../common/ports/shipping-origin.port'
 import { MelhorEnvioWebhookValidator } from './melhor-envio-webhook.validator'
 import { MelhorEnvioClient } from './melhor-envio.client'
 import { MelhorEnvioGateway } from './melhor-envio.gateway'
@@ -66,6 +70,28 @@ const SHIPPING_USER_AGENT = 'Elopet (contato@elopet.online)'
         config.get<string>('MELHOR_ENVIO_FROM_POSTAL_CODE') ?? '01310100',
     },
     {
+      provide: SHIPPING_ORIGIN_PORT,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService): ShippingAddress => ({
+        name: config.get<string>('MELHOR_ENVIO_FROM_NAME') ?? 'Elopet',
+        email:
+          config.get<string>('MELHOR_ENVIO_FROM_EMAIL') ??
+          'contato@elopet.online',
+        phone: config.get<string>('MELHOR_ENVIO_FROM_PHONE') ?? '',
+        ...(config.get<string>('MELHOR_ENVIO_FROM_DOCUMENT')
+          ? { document: config.get<string>('MELHOR_ENVIO_FROM_DOCUMENT') }
+          : {}),
+        postalCode: (
+          config.get<string>('MELHOR_ENVIO_FROM_POSTAL_CODE') ?? '01310100'
+        ).replace(/\D/g, ''),
+        address: config.get<string>('MELHOR_ENVIO_FROM_ADDRESS') ?? '',
+        city: config.get<string>('MELHOR_ENVIO_FROM_CITY') ?? '',
+        stateAbbr: (
+          config.get<string>('MELHOR_ENVIO_FROM_STATE') ?? ''
+        ).toUpperCase(),
+      }),
+    },
+    {
       provide: SHIPPING_GATEWAY_PORT,
       inject: [MelhorEnvioClient, SHIPPING_TOKEN_STORE_PORT],
       useFactory: (
@@ -83,6 +109,7 @@ const SHIPPING_USER_AGENT = 'Elopet (contato@elopet.online)'
     SHIPPING_TOKEN_STORE_PORT,
     SHIPPING_WEBHOOK_VALIDATOR_PORT,
     SHIPPING_ORIGIN_POSTAL_CODE_PORT,
+    SHIPPING_ORIGIN_PORT,
     MelhorEnvioClient,
   ],
 })
