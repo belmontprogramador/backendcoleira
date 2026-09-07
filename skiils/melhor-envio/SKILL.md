@@ -145,20 +145,53 @@ Fluxo em 4 passos:
 
 ### 3.1 Inserir no carrinho — `POST /api/v2/me/cart` · `cart-write`
 
+> ⚠️ **Estrutura exata (fonte dos 422 em cascata).** O `products` aqui NÃO é o
+> mesmo do `calculate`: no cart ele é **declaração de conteúdo** (sem dimensões),
+> e as dimensões vão em **`volumes`** (pacotes). `options` é **obrigatório**.
+
 ```json
 {
   "service": 1,
-  "from": { "name": "...", "phone": "...", "email": "...", "document": "...",
-            "postal_code": "...", "address": "...", "city": "...", "state_abbr": "..." },
-  "to":   { "name": "...", "phone": "...", "email": "...", "document": "...",
-            "postal_code": "...", "address": "...", "city": "...", "state_abbr": "..." },
-  "products": [ { "id": "A", "width": 11, "height": 17, "length": 11, "weight": 1,
-                  "insurance_value": 10.1, "quantity": 1 } ],
-  "volumes": [ { "width": 11, "height": 17, "length": 11, "weight": 1, "insurance": 10.1 } ],
-  "options": { "receipt": false, "own_hand": false, "non_commercial": true,
-               "invoice": {}, "dce": {}, "tags": [] }
+  "from": {
+    "name": "Remetente", "phone": "...", "email": "...",
+    "document": "11485925711",
+    "address": "Rua X", "number": "206", "district": "Bairro",
+    "city": "Araruama", "state_abbr": "RJ", "country_id": "BR",
+    "postal_code": "28979608"
+  },
+  "to": {
+    "name": "Destinatário", "phone": "...", "email": "...",
+    "document": "05596752088",
+    "address": "Rua Y", "number": "100", "district": "Centro",
+    "city": "São Paulo", "state_abbr": "SP", "country_id": "BR",
+    "postal_code": "01018020"
+  },
+  "products": [
+    { "name": "Pingente Elopet", "quantity": 1, "unitary_value": 19.9 }
+  ],
+  "volumes": [
+    { "height": 5, "width": 15, "length": 20, "weight": 0.3 }
+  ],
+  "options": {
+    "insurance_value": 19.9,
+    "receipt": false,
+    "own_hand": false,
+    "reverse": false,
+    "non_commercial": true
+  }
 }
 ```
+
+**Obrigatórios:** `service`, `from`, `to`, `products`, `volumes`, `options`.
+- `products[]` = declaração de conteúdo: `name`, `quantity`, `unitary_value` (sem dimensões).
+- `volumes[]` = pacotes físicos: `height`, `width`, `length`, `weight`.
+- `options` = `insurance_value` (valor segurado fica AQUI, não no produto), `receipt`,
+  `own_hand`, `reverse`, `non_commercial`.
+- `from`/`to` = `name`, `document` (CPF PF) OU `company_document` (CNPJ PJ), `address`
+  (logradouro SEM número), `number`, `district`, `city`, `country_id` ("BR"),
+  `postal_code`, `state_abbr`.
+- Envio não comercial: `options.non_commercial=true`; NÃO enviar `options.invoice`;
+  `from.state_register` vazio ou "ISENTO".
 
 Resposta retorna o **`id` da etiqueta** — guarde para os passos seguintes.
 

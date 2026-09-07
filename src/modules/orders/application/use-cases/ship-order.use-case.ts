@@ -162,9 +162,11 @@ export class ShipOrderUseCase {
           ...PINGENTE_PACKAGE,
           quantity: order.quantity,
           unitaryValue: order.unitPrice.amountInCents / 100,
-          insuranceValue: (order.unitPrice.amountInCents / 100) * order.quantity,
         },
       ],
+      options: {
+        insuranceValue: (order.unitPrice.amountInCents / 100) * order.quantity,
+      },
     })
     await this.shipping.payShipment([created.orderId])
     await this.shipping.generateLabel([created.orderId])
@@ -184,10 +186,14 @@ export class ShipOrderUseCase {
       name: s.name,
       phone: s.phone,
       email: '',
+      ...(s.document ? { document: s.document } : {}),
       postalCode: s.postalCode,
-      address: `${s.street}, ${s.number}`,
+      address: s.street,
+      number: s.number,
+      ...(s.district ? { district: s.district } : {}),
       city: s.city,
       stateAbbr: s.state,
+      countryId: 'BR',
     }
   }
 }

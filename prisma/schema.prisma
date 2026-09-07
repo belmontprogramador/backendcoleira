@@ -599,6 +599,8 @@ model Order {
   ship_state         String
   ship_name          String
   ship_phone         String
+  ship_district      String?
+  ship_document      String?
   freight_service_id Int?
   paid_at            DateTime?
   shipped_at         DateTime?

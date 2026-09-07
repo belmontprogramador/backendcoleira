@@ -28,6 +28,8 @@ export class OrderMapper {
     ship_state: string
     ship_name: string
     ship_phone: string
+    ship_district: string | null
+    ship_document: string | null
     freight_service_id: number | null
     paid_at: Date | null
     shipped_at: Date | null
@@ -54,6 +56,8 @@ export class OrderMapper {
       ship_state: order.shipTo.state,
       ship_name: order.shipTo.name,
       ship_phone: order.shipTo.phone,
+      ship_district: order.shipTo.district,
+      ship_document: order.shipTo.document,
       freight_service_id: order.freightServiceId,
       paid_at: order.paidAt,
       shipped_at: order.shippedAt,
@@ -84,6 +88,8 @@ export class OrderMapper {
         state: model.ship_state,
         name: model.ship_name,
         phone: model.ship_phone,
+        district: model.ship_district ?? undefined,
+        document: model.ship_document ?? undefined,
       }),
       freightServiceId: model.freight_service_id,
       paidAt: model.paid_at,

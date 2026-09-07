@@ -88,10 +88,15 @@ const SHIPPING_USER_AGENT = 'Elopet (contato@elopet.online)'
           config.get<string>('MELHOR_ENVIO_FROM_POSTAL_CODE') ?? '01310100'
         ).replace(/\D/g, ''),
         address: config.get<string>('MELHOR_ENVIO_FROM_ADDRESS') ?? '',
+        number: config.get<string>('MELHOR_ENVIO_FROM_NUMBER') ?? '',
+        ...(config.get<string>('MELHOR_ENVIO_FROM_DISTRICT')
+          ? { district: config.get<string>('MELHOR_ENVIO_FROM_DISTRICT') }
+          : {}),
         city: config.get<string>('MELHOR_ENVIO_FROM_CITY') ?? '',
         stateAbbr: (
           config.get<string>('MELHOR_ENVIO_FROM_STATE') ?? ''
         ).toUpperCase(),
+        countryId: 'BR',
       }),
     },
     {

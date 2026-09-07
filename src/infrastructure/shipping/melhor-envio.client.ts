@@ -120,8 +120,11 @@ export interface CartAddress {
   document?: string
   postal_code: string
   address: string
+  number: string
+  district?: string
   city: string
   state_abbr: string
+  country_id: string
 }
 
 /** Payload de `POST /api/v2/me/cart` (raw, formato ME). */
@@ -129,26 +132,26 @@ export interface CartInput {
   service: number
   from: CartAddress
   to: CartAddress
-  products?: Array<{
-    id: string
+  /** Declaração de conteúdo (name/quantity/unitary_value). */
+  products: Array<{
     name: string
-    width: number
-    height: number
-    length: number
-    weight: number
-    insurance_value: number
-    unitary_value: number
     quantity: number
+    unitary_value: number
   }>
-  volumes?: Array<{
-    width: number
+  /** Pacotes físicos (dimensões/peso). */
+  volumes: Array<{
     height: number
+    width: number
     length: number
     weight: number
-    insurance: number
-    quantity?: number
   }>
-  options?: { receipt?: boolean; own_hand?: boolean; non_commercial?: boolean }
+  options: {
+    insurance_value: number
+    receipt: boolean
+    own_hand: boolean
+    reverse: boolean
+    non_commercial: boolean
+  }
 }
 
 /** Resposta de `POST /api/v2/me/cart` — a etiqueta criada no carrinho. */

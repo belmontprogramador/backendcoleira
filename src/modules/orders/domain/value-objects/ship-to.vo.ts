@@ -14,12 +14,16 @@ export interface ShipToProps {
   state: string
   name: string
   phone: string
+  district?: string
+  document?: string
 }
 
 /**
  * Value object imutável — endereço de entrega do pedido (snapshot no checkout).
  * Invariantes: CEP 8 dígitos, UF 2 letras, campos obrigatórios não vazios.
- * `create` normaliza CEP (remove máscara) e UF (uppercase).
+ * `create` normaliza CEP (remove máscara) e UF (uppercase). `district` (bairro)
+ * e `document` (CPF do destinatário) são opcionais — usados no despacho (carrinho
+ * Melhor Envio), não no cálculo de frete.
  */
 export class ShipTo {
   private constructor(
@@ -30,6 +34,8 @@ export class ShipTo {
     private readonly _state: string,
     private readonly _name: string,
     private readonly _phone: string,
+    private readonly _district: string | null,
+    private readonly _document: string | null,
   ) {}
 
   static create(props: ShipToProps): ShipTo {
@@ -40,6 +46,8 @@ export class ShipTo {
     const city = props.city.trim()
     const name = props.name.trim()
     const phone = props.phone.trim()
+    const district = props.district?.trim() || null
+    const document = props.document?.trim() || null
 
     if (!/^\d{8}$/.test(postalCode)) {
       throw new InvalidShipToError('CEP deve ter 8 dígitos')
@@ -51,7 +59,17 @@ export class ShipTo {
       throw new InvalidShipToError('Endereço de entrega incompleto')
     }
 
-    return new ShipTo(postalCode, street, number, city, state, name, phone)
+    return new ShipTo(
+      postalCode,
+      street,
+      number,
+      city,
+      state,
+      name,
+      phone,
+      district,
+      document,
+    )
   }
 
   get postalCode(): string {
@@ -75,6 +93,12 @@ export class ShipTo {
   get phone(): string {
     return this._phone
   }
+  get district(): string | null {
+    return this._district
+  }
+  get document(): string | null {
+    return this._document
+  }
 
   equals(other: ShipTo): boolean {
     return (
@@ -84,7 +108,9 @@ export class ShipTo {
       this._city === other._city &&
       this._state === other._state &&
       this._name === other._name &&
-      this._phone === other._phone
+      this._phone === other._phone &&
+      this._district === other._district &&
+      this._document === other._document
     )
   }
 }

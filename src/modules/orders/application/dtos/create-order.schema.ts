@@ -8,6 +8,8 @@ export const shipToSchema = z.object({
   state: z.string().trim().min(2).max(2),
   name: z.string().trim().min(1),
   phone: z.string().trim().min(8),
+  district: z.string().trim().min(1).optional(),
+  document: z.string().trim().min(11).max(18).optional(),
 })
 
 /**

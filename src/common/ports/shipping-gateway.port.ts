@@ -14,8 +14,11 @@ export interface ShippingAddress {
   document?: string
   postalCode: string
   address: string
+  number: string
+  district?: string
   city: string
   stateAbbr: string
+  countryId?: string
 }
 
 export interface ShippingVolume {
@@ -59,12 +62,21 @@ export interface ShippingQuote {
   company: { id: number; name: string; picture: string }
 }
 
+export interface ShipmentOptions {
+  insuranceValue: number
+  receipt?: boolean
+  ownHand?: boolean
+  reverse?: boolean
+  nonCommercial?: boolean
+}
+
 export interface CreateShipmentInput {
   service: number
   from: ShippingAddress
   to: ShippingAddress
   products?: ShippingProduct[]
   volumes?: ShippingVolume[]
+  options?: ShipmentOptions
 }
 
 export interface CreateShipmentResult {

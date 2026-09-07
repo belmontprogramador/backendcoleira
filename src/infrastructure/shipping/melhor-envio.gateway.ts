@@ -41,8 +41,11 @@ function toAddress(address: ShippingAddress): CartAddress {
     ...(address.document ? { document: address.document } : {}),
     postal_code: address.postalCode,
     address: address.address,
+    number: address.number,
+    ...(address.district ? { district: address.district } : {}),
     city: address.city,
     state_abbr: address.stateAbbr,
+    country_id: address.countryId ?? 'BR',
   }
 }
 
@@ -75,6 +78,42 @@ function toVolumes(volumes?: ShippingVolume[]) {
     insurance: v.insurance,
     ...(v.quantity !== undefined ? { quantity: v.quantity } : {}),
   }))
+}
+
+/** Declaração de conteúdo do carrinho (name/quantity/unitary_value). */
+function toCartProducts(products?: ShippingProduct[]): CartInput['products'] {
+  if (!products) {
+    return []
+  }
+  return products.map((p) => ({
+    name: p.name,
+    quantity: p.quantity,
+    unitary_value: p.unitaryValue,
+  }))
+}
+
+/** Pacotes físicos do carrinho (height/width/length/weight). */
+function toCartVolumes(
+  volumes?: ShippingVolume[],
+  products?: ShippingProduct[],
+): CartInput['volumes'] {
+  if (volumes && volumes.length > 0) {
+    return volumes.map((v) => ({
+      height: v.height,
+      width: v.width,
+      length: v.length,
+      weight: v.weight,
+    }))
+  }
+  if (products && products.length > 0) {
+    return products.map((p) => ({
+      height: p.height,
+      width: p.width,
+      length: p.length,
+      weight: p.weight,
+    }))
+  }
+  return []
 }
 
 /**
@@ -120,12 +159,25 @@ export class MelhorEnvioGateway implements ShippingGatewayPort {
   async createShipment(
     input: CreateShipmentInput,
   ): Promise<CreateShipmentResult> {
+    const insuranceValue =
+      input.options?.insuranceValue ??
+      (input.products ?? []).reduce(
+        (sum, p) => sum + p.unitaryValue * p.quantity,
+        0,
+      )
     const body: CartInput = {
       service: input.service,
       from: toAddress(input.from),
       to: toAddress(input.to),
-      ...(input.products ? { products: toProducts(input.products) } : {}),
-      ...(input.volumes ? { volumes: toVolumes(input.volumes) } : {}),
+      products: toCartProducts(input.products),
+      volumes: toCartVolumes(input.volumes, input.products),
+      options: {
+        insurance_value: insuranceValue,
+        receipt: input.options?.receipt ?? false,
+        own_hand: input.options?.ownHand ?? false,
+        reverse: input.options?.reverse ?? false,
+        non_commercial: input.options?.nonCommercial ?? true,
+      },
     }
     const res = await this.withToken((token) =>
       this.client.addToCart(body, token),

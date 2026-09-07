@@ -164,6 +164,86 @@ describe('MelhorEnvioGateway', () => {
         'at-1',
       )
     })
+
+    it('monta o payload completo do carrinho (products + volumes + options + endereço completo)', async () => {
+      const client = {
+        addToCart: jest.fn().mockResolvedValue({ id: 'o1', protocol: 'P1' }),
+      }
+      const tokenStore = { get: jest.fn().mockResolvedValue(credential), save: jest.fn() }
+
+      const gateway = makeGateway(client, tokenStore)
+      await gateway.createShipment({
+        service: 1,
+        from: {
+          name: 'Elopet',
+          phone: '1',
+          email: 'a@b.c',
+          document: '11485925711',
+          postalCode: '28979608',
+          address: 'Rua Protogenes Guimaraes',
+          number: '206',
+          district: 'Praca da Bandeira',
+          city: 'Araruama',
+          stateAbbr: 'RJ',
+          countryId: 'BR',
+        },
+        to: {
+          name: 'Fulano',
+          phone: '2',
+          email: 'b@c.d',
+          document: '05596752088',
+          postalCode: '96020360',
+          address: 'Rua X',
+          number: '100',
+          district: 'Centro',
+          city: 'Pelotas',
+          stateAbbr: 'RS',
+          countryId: 'BR',
+        },
+        products: [
+          {
+            id: 'pingente',
+            name: 'Pingente Elopet',
+            width: 15,
+            height: 5,
+            length: 20,
+            weight: 0.3,
+            insuranceValue: 19.9,
+            unitaryValue: 19.9,
+            quantity: 1,
+          },
+        ],
+        options: { insuranceValue: 19.9 },
+      })
+
+      expect(client.addToCart).toHaveBeenCalledWith(
+        {
+          service: 1,
+          from: expect.objectContaining({
+            postal_code: '28979608',
+            address: 'Rua Protogenes Guimaraes',
+            number: '206',
+            district: 'Praca da Bandeira',
+            country_id: 'BR',
+          }),
+          to: expect.objectContaining({
+            document: '05596752088',
+            number: '100',
+            country_id: 'BR',
+          }),
+          products: [{ name: 'Pingente Elopet', quantity: 1, unitary_value: 19.9 }],
+          volumes: [{ height: 5, width: 15, length: 20, weight: 0.3 }],
+          options: {
+            insurance_value: 19.9,
+            receipt: false,
+            own_hand: false,
+            reverse: false,
+            non_commercial: true,
+          },
+        },
+        'at-1',
+      )
+    })
   })
 
   describe('printLabel', () => {

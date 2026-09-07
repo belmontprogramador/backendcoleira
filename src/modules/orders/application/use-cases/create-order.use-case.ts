@@ -40,6 +40,8 @@ export interface CreateOrderInput {
     state: string
     name: string
     phone: string
+    district?: string
+    document?: string
   }
   freightServiceId: number
   paymentMethod: PaymentMethod
