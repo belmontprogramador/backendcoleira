@@ -52,11 +52,13 @@ function toProducts(products?: ShippingProduct[]) {
   }
   return products.map((p) => ({
     id: p.id,
+    name: p.name,
     width: p.width,
     height: p.height,
     length: p.length,
     weight: p.weight,
     insurance_value: p.insuranceValue,
+    unitary_value: p.unitaryValue,
     quantity: p.quantity,
   }))
 }

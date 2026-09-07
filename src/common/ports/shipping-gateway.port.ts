@@ -29,11 +29,13 @@ export interface ShippingVolume {
 
 export interface ShippingProduct {
   id: string
+  name: string
   width: number
   height: number
   length: number
   weight: number
   insuranceValue: number
+  unitaryValue: number
   quantity: number
 }
 

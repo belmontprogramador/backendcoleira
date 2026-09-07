@@ -14,10 +14,12 @@ import type { ShippingProduct } from '../../../../common/ports/shipping-gateway.
  */
 export const PINGENTE_PACKAGE: ShippingProduct = {
   id: 'pingente',
+  name: 'Pingente Elopet',
   width: 15,
   height: 5,
   length: 20,
   weight: 0.3,
   insuranceValue: 0,
+  unitaryValue: 19.9,
   quantity: 1,
 }

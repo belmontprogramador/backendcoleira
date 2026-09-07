@@ -157,7 +157,13 @@ export class ShipOrderUseCase {
       service: serviceId,
       from: this.origin,
       to: this.toAddress(order),
-      products: [{ ...PINGENTE_PACKAGE, quantity: order.quantity }],
+      products: [
+        {
+          ...PINGENTE_PACKAGE,
+          quantity: order.quantity,
+          unitaryValue: order.unitPrice.amountInCents / 100,
+        },
+      ],
     })
     await this.shipping.payShipment([created.orderId])
     await this.shipping.generateLabel([created.orderId])

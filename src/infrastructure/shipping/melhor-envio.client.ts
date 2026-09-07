@@ -57,11 +57,13 @@ export interface CalculateQuotationInput {
   to: { postal_code: string }
   products?: Array<{
     id: string
+    name: string
     width: number
     height: number
     length: number
     weight: number
     insurance_value: number
+    unitary_value: number
     quantity: number
   }>
   volumes?: Array<{
@@ -129,11 +131,13 @@ export interface CartInput {
   to: CartAddress
   products?: Array<{
     id: string
+    name: string
     width: number
     height: number
     length: number
     weight: number
     insurance_value: number
+    unitary_value: number
     quantity: number
   }>
   volumes?: Array<{

@@ -67,7 +67,10 @@ const SHIPPING_USER_AGENT = 'Elopet (contato@elopet.online)'
       provide: SHIPPING_ORIGIN_POSTAL_CODE_PORT,
       inject: [ConfigService],
       useFactory: (config: ConfigService) =>
-        config.get<string>('MELHOR_ENVIO_FROM_POSTAL_CODE') ?? '01310100',
+        (config.get<string>('MELHOR_ENVIO_FROM_POSTAL_CODE') ?? '01310100').replace(
+          /\D/g,
+          '',
+        ),
     },
     {
       provide: SHIPPING_ORIGIN_PORT,
