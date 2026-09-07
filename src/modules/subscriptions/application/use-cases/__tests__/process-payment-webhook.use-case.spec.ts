@@ -4,6 +4,9 @@ import type { PaymentWebhookValidatorPort } from '../../../../../common/ports/pa
 import type { PaymentGatewayPort } from '../../../../../common/ports/payment-gateway.port'
 import type { PaymentTransactionRepositoryPort } from '../../../domain/repositories/payment-transaction.repository.port'
 import type { SubscriptionRepositoryPort } from '../../../domain/repositories/subscription.repository.port'
+import type { OrderRepositoryPort } from '../../../../orders/domain/repositories/order.repository.port'
+import { Order } from '../../../../orders/domain/entities/order.entity'
+import { ShipTo } from '../../../../orders/domain/value-objects/ship-to.vo'
 import type { PlanRepositoryPort } from '../../../../plans/domain/repositories/plan.repository.port'
 import type { AuditLoggerPort } from '../../../../../common/ports/audit-logger.port'
 import { InvalidWebhookSignatureError } from '../../errors'
@@ -19,6 +22,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
   let validator: jest.Mocked<PaymentWebhookValidatorPort>
   let gateway: jest.Mocked<PaymentGatewayPort>
   let transactions: jest.Mocked<PaymentTransactionRepositoryPort>
+  let orders: jest.Mocked<OrderRepositoryPort>
   let subscriptions: jest.Mocked<SubscriptionRepositoryPort>
   let plans: jest.Mocked<PlanRepositoryPort>
   let audit: jest.Mocked<AuditLoggerPort>
@@ -31,6 +35,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
       validator,
       gateway,
       transactions,
+      orders,
       subscriptions,
       plans,
       audit,
@@ -73,6 +78,13 @@ describe('ProcessPaymentWebhookUseCase', () => {
     validator = { validate: jest.fn() }
     gateway = { createPayment: jest.fn(), getPayment: jest.fn() }
     transactions = { save: jest.fn(), findByProviderPaymentId: jest.fn() }
+    orders = {
+      save: jest.fn(),
+      findById: jest.fn(),
+      findByPaymentId: jest.fn(),
+      list: jest.fn(),
+      count: jest.fn(),
+    }
     subscriptions = {
       save: jest.fn(),
       findById: jest.fn(),
@@ -280,6 +292,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
       paymentMethod: 'PIX',
     })
     transactions.findByProviderPaymentId.mockResolvedValue(null)
+    orders.findByPaymentId.mockResolvedValue(null)
 
     const result = await makeUseCase().execute(
       { headers: {}, dataId: '', rawBody: paymentNotification() },
@@ -289,6 +302,53 @@ describe('ProcessPaymentWebhookUseCase', () => {
     expect(result.status).toBe('PROCESSED')
     expect(subscriptions.save).not.toHaveBeenCalled()
     expect(transactions.save).not.toHaveBeenCalled()
+  })
+
+  it('approved sem transaction: marca Order (venda do pingente) como PAID', async () => {
+    validator.validate.mockReturnValue(true)
+    webhookEvents.findByProviderEventId.mockResolvedValue(null)
+    gateway.getPayment.mockResolvedValue({
+      id: 'mp-123',
+      status: 'APPROVED',
+      paymentMethod: 'PIX',
+    })
+    transactions.findByProviderPaymentId.mockResolvedValue(null)
+
+    const order = Order.create({
+      id: 'order-1',
+      buyerId: 'user-1',
+      productId: 'prod-1',
+      unitPrice: Price.create(1990),
+      freightPrice: Price.zero(),
+      paymentMethod: 'PIX',
+      shipTo: ShipTo.create({
+        postalCode: '28977505',
+        street: 'Rua A',
+        number: '10',
+        city: 'Araruama',
+        state: 'RJ',
+        name: 'Fulano',
+        phone: '2299999999',
+      }),
+      freightServiceId: 3,
+      paymentId: 'mp-123',
+    })
+    orders.findByPaymentId.mockResolvedValue(order)
+
+    await makeUseCase().execute(
+      { headers: {}, dataId: '', rawBody: paymentNotification() },
+      now,
+    )
+
+    expect(order.status).toBe('PAID')
+    expect(orders.save).toHaveBeenCalledWith(order)
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'order_paid',
+        entity: 'Order',
+        entityId: 'order-1',
+      }),
+    )
   })
 
   it('notificação não-payment é registrada e ignorada', async () => {

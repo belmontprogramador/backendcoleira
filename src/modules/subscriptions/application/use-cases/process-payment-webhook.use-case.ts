@@ -14,6 +14,10 @@ import { PLAN_REPOSITORY_PORT } from '../../../plans/domain/repositories/plan.re
 import type { PlanRepositoryPort } from '../../../plans/domain/repositories/plan.repository.port'
 import { AUDIT_LOGGER_PORT } from '../../../../common/ports/audit-logger.port'
 import type { AuditLoggerPort } from '../../../../common/ports/audit-logger.port'
+import {
+  ORDER_REPOSITORY_PORT,
+  type OrderRepositoryPort,
+} from '../../../orders/domain/repositories/order.repository.port'
 import { InvalidWebhookSignatureError } from '../errors'
 import { InvalidWebhookPayloadError } from '../errors'
 import { WebhookEvent } from '../../domain/entities/webhook-event.entity'
@@ -55,6 +59,8 @@ export class ProcessPaymentWebhookUseCase {
     private readonly gateway: PaymentGatewayPort,
     @Inject(PAYMENT_TRANSACTION_REPOSITORY_PORT)
     private readonly transactions: PaymentTransactionRepositoryPort,
+    @Inject(ORDER_REPOSITORY_PORT)
+    private readonly orders: OrderRepositoryPort,
     @Inject(SUBSCRIPTION_REPOSITORY_PORT)
     private readonly subscriptions: SubscriptionRepositoryPort,
     @Inject(PLAN_REPOSITORY_PORT)
@@ -155,6 +161,26 @@ export class ProcessPaymentWebhookUseCase {
       providerPaymentId,
     )
     if (!transaction) {
+      // Fallback: o pagamento aprovado pode ser de uma venda (Order), não de
+      // assinatura. Checkout do pingente e assinatura compartilham o mesmo
+      // webhook do Mercado Pago (`type: "payment"`), então resolvemos o dono
+      // pelo `payment_id` (Order vs PaymentTransaction).
+      const order = await this.orders.findByPaymentId(providerPaymentId)
+      if (order) {
+        if (order.status === 'PENDING') {
+          order.markPaid()
+          await this.orders.save(order)
+          await this.audit.log({
+            userId: order.buyerId,
+            action: 'order_paid',
+            entity: 'Order',
+            entityId: order.id,
+            metadata: { paymentId: providerPaymentId, paymentStatus: 'APPROVED' },
+          })
+        }
+        return true
+      }
+
       event.markFailed(
         'PaymentTransaction não encontrada para o payment_id do webhook',
       )

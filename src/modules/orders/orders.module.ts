@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common'
+import { Module, forwardRef } from '@nestjs/common'
 import { ProductsModule } from '../products/products.module'
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module'
 import { ORDER_REPOSITORY_PORT } from './domain/repositories/order.repository.port'
@@ -30,7 +30,7 @@ import { ShippingWebhookController } from './presentation/controllers/shipping-w
  * `ShippingModule` (@Global). Provê as portas de persistência de `Order`/`Shipment`.
  */
 @Module({
-  imports: [ProductsModule, SubscriptionsModule],
+  imports: [ProductsModule, forwardRef(() => SubscriptionsModule)],
   controllers: [
     OrdersController,
     AdminOrdersController,
@@ -54,5 +54,6 @@ import { ShippingWebhookController } from './presentation/controllers/shipping-w
     AdminUpdateOrderStatusUseCase,
     ProcessShippingWebhookUseCase,
   ],
+  exports: [ORDER_REPOSITORY_PORT],
 })
 export class OrdersModule {}
