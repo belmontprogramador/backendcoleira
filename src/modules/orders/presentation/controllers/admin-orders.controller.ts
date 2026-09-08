@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common
 import { ListAllOrdersUseCase } from '../../application/use-cases/list-all-orders.use-case'
 import { AdminGetOrderUseCase } from '../../application/use-cases/admin-get-order.use-case'
 import { ShipOrderUseCase } from '../../application/use-cases/ship-order.use-case'
+import { TrackOrderUseCase } from '../../application/use-cases/track-order.use-case'
 import { AdminUpdateOrderStatusUseCase } from '../../application/use-cases/admin-update-order-status.use-case'
 import { OrderResponseMapper } from '../../application/mappers/order-response.mapper'
 import { listOrdersSchema } from '../../application/dtos/list-orders.schema'
@@ -30,6 +31,7 @@ export class AdminOrdersController {
     private readonly listAll: ListAllOrdersUseCase,
     private readonly getOrder: AdminGetOrderUseCase,
     private readonly ship: ShipOrderUseCase,
+    private readonly trackOrder: TrackOrderUseCase,
     private readonly updateStatus: AdminUpdateOrderStatusUseCase,
   ) {}
 
@@ -56,7 +58,8 @@ export class AdminOrdersController {
   @Get(':id')
   async detail(@Param('id') id: string) {
     const order = await this.getOrder.execute({ orderId: id })
-    return OrderResponseMapper.toResponse(order)
+    const tracking = await this.trackOrder.execute({ orderId: id })
+    return { ...OrderResponseMapper.toResponse(order), tracking }
   }
 
   @Post(':id/ship')

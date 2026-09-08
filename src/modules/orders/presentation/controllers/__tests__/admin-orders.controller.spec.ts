@@ -29,14 +29,16 @@ describe('AdminOrdersController', () => {
     const listAll = { execute: jest.fn() }
     const getOrder = { execute: jest.fn() }
     const ship = { execute: jest.fn() }
+    const trackOrder = { execute: jest.fn() }
     const updateStatus = { execute: jest.fn() }
     const controller = new AdminOrdersController(
       listAll as never,
       getOrder as never,
       ship as never,
+      trackOrder as never,
       updateStatus as never,
     )
-    return { controller, listAll, getOrder, ship, updateStatus }
+    return { controller, listAll, getOrder, ship, trackOrder, updateStatus }
   }
 
   it('list monta o envelope com meta', async () => {
@@ -55,14 +57,19 @@ describe('AdminOrdersController', () => {
     expect(result.data[0].id).toBe('ord-1')
   })
 
-  it('detail projeta o pedido', async () => {
-    const { controller, getOrder } = makeController()
+  it('detail projeta o pedido com rastreio', async () => {
+    const { controller, getOrder, trackOrder } = makeController()
     getOrder.execute.mockResolvedValue(makeOrder())
+    trackOrder.execute.mockResolvedValue({
+      'ord-1': { id: 'ord-1', protocol: 'ORD-1', status: 'posted', tracking: 'PZ1' },
+    })
 
     const result = await controller.detail('ord-1')
 
     expect(getOrder.execute).toHaveBeenCalledWith({ orderId: 'ord-1' })
+    expect(trackOrder.execute).toHaveBeenCalledWith({ orderId: 'ord-1' })
     expect(result.id).toBe('ord-1')
+    expect(result.tracking['ord-1'].tracking).toBe('PZ1')
   })
 
   it('shipRoute delega com actorId do token', async () => {
