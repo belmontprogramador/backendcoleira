@@ -14,6 +14,8 @@ import { PLAN_REPOSITORY_PORT } from '../../../plans/domain/repositories/plan.re
 import type { PlanRepositoryPort } from '../../../plans/domain/repositories/plan.repository.port'
 import { AUDIT_LOGGER_PORT } from '../../../../common/ports/audit-logger.port'
 import type { AuditLoggerPort } from '../../../../common/ports/audit-logger.port'
+import { AFFILIATE_COMMISSION_PORT } from '../../../../common/ports/affiliate-commission.port'
+import type { AffiliateCommissionPort } from '../../../../common/ports/affiliate-commission.port'
 import {
   ORDER_REPOSITORY_PORT,
   type OrderRepositoryPort,
@@ -67,6 +69,8 @@ export class ProcessPaymentWebhookUseCase {
     private readonly plans: PlanRepositoryPort,
     @Inject(AUDIT_LOGGER_PORT)
     private readonly audit: AuditLoggerPort,
+    @Inject(AFFILIATE_COMMISSION_PORT)
+    private readonly affiliateCommission: AffiliateCommissionPort,
   ) {}
 
   async execute(
@@ -225,6 +229,12 @@ export class ProcessPaymentWebhookUseCase {
           entity: 'Subscription',
           entityId: subscription.id,
           metadata: { planId: plan.id, providerPaymentId },
+        })
+
+        await this.affiliateCommission.attributeSubscription({
+          subscriptionId: subscription.id,
+          referralCode: transaction.referralCode,
+          baseAmountCents: plan.price.amountInCents,
         })
       }
     }

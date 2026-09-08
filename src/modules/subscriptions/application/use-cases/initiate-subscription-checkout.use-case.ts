@@ -28,6 +28,7 @@ export interface InitiateSubscriptionCheckoutInput {
   payerIdentificationNumber?: string
   payerFirstName?: string
   payerLastName?: string
+  referralCode?: string | null
 }
 
 export interface CheckoutResult {
@@ -104,6 +105,7 @@ export class InitiateSubscriptionCheckoutUseCase {
       paymentMethod: input.paymentMethod,
       amount: plan.price,
       status: result.status,
+      referralCode: input.referralCode ?? null,
     })
 
     await this.transactions.save(transaction)

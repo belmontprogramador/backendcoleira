@@ -37,6 +37,7 @@ import { PetContactsModule } from './modules/pet-contacts/pet-contacts.module'
 import { DashboardModule } from './modules/dashboard/dashboard.module'
 import { ProductsModule } from './modules/products/products.module'
 import { OrdersModule } from './modules/orders/orders.module'
+import { AffiliatesModule } from './modules/affiliates/affiliates.module'
 
 @Module({
   imports: [
@@ -91,6 +92,7 @@ import { OrdersModule } from './modules/orders/orders.module'
     DashboardModule,
     ProductsModule,
     OrdersModule,
+    AffiliatesModule,
     PublicProfileModule,
     PublicProfileInvalidationModule,
   ],

@@ -42,6 +42,7 @@ model User {
   subscriptions        Subscription[]
   payment_transactions PaymentTransaction[]
   orders               Order[]
+  affiliate            Affiliate?
 
   @@index([status])
   @@index([deleted_at])
@@ -441,6 +442,7 @@ model Subscription {
   plan Plan @relation(fields: [plan_id], references: [id], onDelete: Restrict)
 
   transactions PaymentTransaction[]
+  commissions  Commission[]
 
   @@index([user_id])
   @@index([plan_id])
@@ -460,6 +462,7 @@ model PaymentTransaction {
   amount_cents        Int
   currency            String          @default("BRL")
   status              PaymentStatus   @default(PENDING)
+  referral_code       String?
   created_at          DateTime        @default(now())
   updated_at          DateTime        @updatedAt
 
@@ -601,6 +604,7 @@ model Order {
   ship_phone         String
   ship_district      String?
   ship_document      String?
+  referral_code      String?
   freight_service_id Int?
   paid_at            DateTime?
   shipped_at         DateTime?
@@ -613,6 +617,8 @@ model Order {
   buyer    User      @relation(fields: [buyer_id], references: [id], onDelete: Restrict)
   product  Product   @relation(fields: [product_id], references: [id], onDelete: Restrict)
   shipment Shipment?
+
+  commissions Commission[]
 
   @@index([buyer_id])
   @@index([product_id])
@@ -638,4 +644,114 @@ model Shipment {
   order Order @relation(fields: [order_id], references: [id], onDelete: Cascade)
 
   @@map("shipments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ÁREA DE AFILIADOS — Afiliado, Comissão e Saque
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum AffiliateStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CommissionType {
+  FIXED
+  PERCENTAGE
+  FIXED_PLUS_PERCENTAGE
+}
+
+enum CommissionStatus {
+  AVAILABLE
+  CANCELLED
+}
+
+enum CommissionSource {
+  ORDER
+  SUBSCRIPTION
+}
+
+enum WithdrawalStatus {
+  RECEIVED
+  PROCESSING
+  PAID
+  REJECTED
+}
+
+// Afiliado — entidade própria, vínculo opcional 1:1 com User.
+// `code` é o referral code definido pelo admin (slug único).
+model Affiliate {
+  id                     String          @id @default(cuid())
+  user_id                String?         @unique
+  code                   String          @unique
+  name                   String
+  email                  String          @unique
+  phone                  String?
+  document               String?
+  pix_key                String?
+  bank_name              String?
+  bank_agency            String?
+  bank_account           String?
+  commission_type        CommissionType  @default(PERCENTAGE)
+  commission_fixed_cents Int             @default(0)
+  commission_percent_bps Int             @default(0)
+  min_withdrawal_cents   Int             @default(0)
+  status                 AffiliateStatus @default(ACTIVE)
+  created_at             DateTime        @default(now())
+  updated_at             DateTime        @updatedAt
+
+  user        User?        @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  commissions Commission[]
+  withdrawals Withdrawal[]
+
+  @@index([status])
+  @@index([created_at])
+  @@map("affiliates")
+}
+
+// Comissão gerada por venda de pingente paga ou ciclo de assinatura pago.
+// A config (type/fixed/percent) é um snapshot do momento da atribuição.
+model Commission {
+  id                String           @id @default(cuid())
+  affiliate_id      String
+  source            CommissionSource
+  order_id          String?
+  subscription_id   String?
+  base_amount_cents Int
+  commission_type   CommissionType
+  fixed_cents       Int
+  percent_bps       Int
+  amount_cents      Int
+  status            CommissionStatus @default(AVAILABLE)
+  created_at        DateTime         @default(now())
+  updated_at        DateTime         @updatedAt
+
+  affiliate    Affiliate     @relation(fields: [affiliate_id], references: [id], onDelete: Cascade)
+  order        Order?        @relation(fields: [order_id], references: [id], onDelete: SetNull)
+  subscription Subscription? @relation(fields: [subscription_id], references: [id], onDelete: SetNull)
+
+  @@index([affiliate_id, status])
+  @@index([order_id])
+  @@index([subscription_id])
+  @@map("commissions")
+}
+
+// Solicitação de saque do afiliado.
+model Withdrawal {
+  id           String           @id @default(cuid())
+  affiliate_id String
+  amount_cents Int
+  pix_key      String
+  status       WithdrawalStatus @default(RECEIVED)
+  requested_at DateTime         @default(now())
+  processed_at DateTime?
+  paid_at      DateTime?
+  created_at   DateTime         @default(now())
+  updated_at   DateTime         @updatedAt
+
+  affiliate Affiliate @relation(fields: [affiliate_id], references: [id], onDelete: Cascade)
+
+  @@index([affiliate_id, status])
+  @@index([status])
+  @@map("withdrawals")
 }

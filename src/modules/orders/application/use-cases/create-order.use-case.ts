@@ -53,6 +53,7 @@ export interface CreateOrderInput {
   payerIdentificationNumber?: string
   payerFirstName?: string
   payerLastName?: string
+  referralCode?: string | null
 }
 
 export interface CreateOrderResult {
@@ -122,6 +123,7 @@ export class CreateOrderUseCase {
       paymentMethod: input.paymentMethod,
       shipTo,
       freightServiceId: input.freightServiceId,
+      referralCode: input.referralCode ?? null,
     })
 
     const payment = await this.payments.createPayment({

@@ -30,6 +30,7 @@ export class OrderMapper {
     ship_phone: string
     ship_district: string | null
     ship_document: string | null
+    referral_code: string | null
     freight_service_id: number | null
     paid_at: Date | null
     shipped_at: Date | null
@@ -58,6 +59,7 @@ export class OrderMapper {
       ship_phone: order.shipTo.phone,
       ship_district: order.shipTo.district,
       ship_document: order.shipTo.document,
+      referral_code: order.referralCode,
       freight_service_id: order.freightServiceId,
       paid_at: order.paidAt,
       shipped_at: order.shippedAt,
@@ -92,6 +94,7 @@ export class OrderMapper {
         document: model.ship_document ?? undefined,
       }),
       freightServiceId: model.freight_service_id,
+      referralCode: model.referral_code,
       paidAt: model.paid_at,
       shippedAt: model.shipped_at,
       deliveredAt: model.delivered_at,

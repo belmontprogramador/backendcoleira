@@ -9,6 +9,7 @@ import { Order } from '../../../../orders/domain/entities/order.entity'
 import { ShipTo } from '../../../../orders/domain/value-objects/ship-to.vo'
 import type { PlanRepositoryPort } from '../../../../plans/domain/repositories/plan.repository.port'
 import type { AuditLoggerPort } from '../../../../../common/ports/audit-logger.port'
+import type { AffiliateCommissionPort } from '../../../../../common/ports/affiliate-commission.port'
 import { InvalidWebhookSignatureError } from '../../errors'
 import { InvalidWebhookPayloadError } from '../../errors'
 import { PaymentTransaction } from '../../../domain/entities/payment-transaction.entity'
@@ -26,6 +27,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
   let subscriptions: jest.Mocked<SubscriptionRepositoryPort>
   let plans: jest.Mocked<PlanRepositoryPort>
   let audit: jest.Mocked<AuditLoggerPort>
+  let affiliateCommission: jest.Mocked<AffiliateCommissionPort>
 
   const now = new Date('2026-01-20T00:00:00.000Z')
 
@@ -39,6 +41,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
       subscriptions,
       plans,
       audit,
+      affiliateCommission,
     )
   }
 
@@ -102,6 +105,12 @@ describe('ProcessPaymentWebhookUseCase', () => {
       update: jest.fn(),
     }
     audit = { log: jest.fn() }
+    affiliateCommission = {
+      attributeOrder: jest.fn(),
+      attributeSubscription: jest.fn(),
+      revokeOrder: jest.fn(),
+      revokeSubscription: jest.fn(),
+    }
   })
 
   it('lança InvalidWebhookSignatureError quando a assinatura é inválida', async () => {

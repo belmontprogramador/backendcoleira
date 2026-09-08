@@ -8,6 +8,7 @@ export interface CreatePaymentTransactionProps {
   userId: string
   planId?: string | null
   subscriptionId?: string | null
+  referralCode?: string | null
   provider: PaymentProvider
   providerPaymentId: string
   paymentMethod: PaymentMethod
@@ -20,6 +21,7 @@ export interface ReconstructPaymentTransactionProps {
   userId: string
   planId: string | null
   subscriptionId: string | null
+  referralCode: string | null
   provider: PaymentProvider
   providerPaymentId: string
   paymentMethod: PaymentMethod
@@ -39,6 +41,7 @@ export class PaymentTransaction {
     private readonly _userId: string,
     private readonly _planId: string | null,
     private _subscriptionId: string | null,
+    private readonly _referralCode: string | null,
     private readonly _provider: PaymentProvider,
     private readonly _providerPaymentId: string,
     private readonly _paymentMethod: PaymentMethod,
@@ -55,6 +58,7 @@ export class PaymentTransaction {
       props.userId,
       props.planId ?? null,
       props.subscriptionId ?? null,
+      props.referralCode ?? null,
       props.provider,
       props.providerPaymentId,
       props.paymentMethod,
@@ -73,6 +77,7 @@ export class PaymentTransaction {
       props.userId,
       props.planId,
       props.subscriptionId,
+      props.referralCode,
       props.provider,
       props.providerPaymentId,
       props.paymentMethod,
@@ -118,6 +123,9 @@ export class PaymentTransaction {
   }
   get subscriptionId(): string | null {
     return this._subscriptionId
+  }
+  get referralCode(): string | null {
+    return this._referralCode
   }
   get provider(): PaymentProvider {
     return this._provider

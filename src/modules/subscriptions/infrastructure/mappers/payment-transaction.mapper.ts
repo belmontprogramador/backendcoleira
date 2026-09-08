@@ -22,6 +22,7 @@ export class PaymentTransactionMapper {
     amount_cents: number
     currency: string
     status: PaymentStatus
+    referral_code: string | null
     created_at: Date
     updated_at: Date
   } {
@@ -36,6 +37,7 @@ export class PaymentTransactionMapper {
       amount_cents: tx.amount.amountInCents,
       currency: tx.amount.currency,
       status: tx.status,
+      referral_code: tx.referralCode,
       created_at: tx.createdAt,
       updated_at: tx.updatedAt,
     }
@@ -52,6 +54,7 @@ export class PaymentTransactionMapper {
       paymentMethod: model.payment_method,
       amount: Price.create(model.amount_cents, model.currency as PriceCurrency),
       status: model.status,
+      referralCode: model.referral_code,
       createdAt: model.created_at,
       updatedAt: model.updated_at,
     })

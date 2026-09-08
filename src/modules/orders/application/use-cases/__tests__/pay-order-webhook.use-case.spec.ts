@@ -38,14 +38,21 @@ function makeSut() {
     save: jest.fn().mockImplementation(async (o: Order) => o),
   }
   const audit = { log: jest.fn().mockResolvedValue(undefined) }
+  const affiliateCommission = {
+    attributeOrder: jest.fn().mockResolvedValue(undefined),
+    attributeSubscription: jest.fn().mockResolvedValue(undefined),
+    revokeOrder: jest.fn().mockResolvedValue(undefined),
+    revokeSubscription: jest.fn().mockResolvedValue(undefined),
+  }
 
   const useCase = new PayOrderWebhookUseCase(
     payments as never,
     orders as never,
     audit as never,
+    affiliateCommission as never,
   )
 
-  return { payments, orders, audit, useCase }
+  return { payments, orders, audit, affiliateCommission, useCase }
 }
 
 describe('PayOrderWebhookUseCase', () => {

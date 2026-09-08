@@ -8,6 +8,8 @@ import {
   ORDER_REPOSITORY_PORT,
   type OrderRepositoryPort,
 } from '../../domain/repositories/order.repository.port'
+import { AFFILIATE_COMMISSION_PORT } from '../../../../common/ports/affiliate-commission.port'
+import type { AffiliateCommissionPort } from '../../../../common/ports/affiliate-commission.port'
 import type { OrderStatus } from '../../domain/value-objects/order-status.vo'
 
 export interface PayOrderWebhookInput {
@@ -37,6 +39,8 @@ export class PayOrderWebhookUseCase {
     private readonly orders: OrderRepositoryPort,
     @Inject(AUDIT_LOGGER_PORT)
     private readonly audit: AuditLoggerPort,
+    @Inject(AFFILIATE_COMMISSION_PORT)
+    private readonly affiliateCommission: AffiliateCommissionPort,
   ) {}
 
   async execute(input: PayOrderWebhookInput): Promise<PayOrderWebhookResult> {
@@ -70,6 +74,17 @@ export class PayOrderWebhookUseCase {
     }
 
     await this.orders.save(order)
+
+    if (action === 'order_paid') {
+      await this.affiliateCommission.attributeOrder({
+        orderId: order.id,
+        referralCode: order.referralCode,
+        baseAmountCents: order.unitPrice.amountInCents * order.quantity,
+      })
+    } else if (action === 'order_refunded') {
+      await this.affiliateCommission.revokeOrder(order.id)
+    }
+
     await this.audit.log({
       userId: order.buyerId,
       action,

@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common'
 import { ProductsModule } from '../products/products.module'
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module'
+import { AffiliatesModule } from '../affiliates/affiliates.module'
 import { ORDER_REPOSITORY_PORT } from './domain/repositories/order.repository.port'
 import { SHIPMENT_REPOSITORY_PORT } from './domain/repositories/shipment.repository.port'
 import { PrismaOrderRepository } from './infrastructure/repositories/prisma-order.repository'
@@ -30,7 +31,7 @@ import { ShippingWebhookController } from './presentation/controllers/shipping-w
  * `ShippingModule` (@Global). Provê as portas de persistência de `Order`/`Shipment`.
  */
 @Module({
-  imports: [ProductsModule, forwardRef(() => SubscriptionsModule)],
+  imports: [ProductsModule, forwardRef(() => SubscriptionsModule), AffiliatesModule],
   controllers: [
     OrdersController,
     AdminOrdersController,

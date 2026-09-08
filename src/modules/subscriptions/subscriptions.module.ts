@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config'
 import { PlansModule } from '../plans/plans.module'
 import { UsersModule } from '../users/users.module'
 import { OrdersModule } from '../orders/orders.module'
+import { AffiliatesModule } from '../affiliates/affiliates.module'
 import { SUBSCRIPTION_REPOSITORY_PORT } from './domain/repositories/subscription.repository.port'
 import { SUBSCRIPTION_OWNER_INFO_PORT } from './domain/repositories/subscription-owner-info.port'
 import { PAYMENT_TRANSACTION_REPOSITORY_PORT } from './domain/repositories/payment-transaction.repository.port'
@@ -40,7 +41,7 @@ import { PaymentWebhookController } from './presentation/controllers/payment-web
  * `FEATURE_ACCESS_PORT` (transversal) para o `FeatureGuard` e use cases Premium.
  */
 @Module({
-  imports: [PlansModule, UsersModule, forwardRef(() => OrdersModule)],
+  imports: [PlansModule, UsersModule, forwardRef(() => OrdersModule), AffiliatesModule],
   controllers: [
     SubscriptionsController,
     AdminSubscriptionsController,

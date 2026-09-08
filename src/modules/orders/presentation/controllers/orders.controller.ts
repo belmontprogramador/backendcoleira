@@ -66,6 +66,7 @@ export class OrdersController {
       payerIdentificationNumber: body.payerIdentificationNumber,
       payerFirstName: body.payerFirstName,
       payerLastName: body.payerLastName,
+      referralCode: body.referralCode,
     })
   }
 

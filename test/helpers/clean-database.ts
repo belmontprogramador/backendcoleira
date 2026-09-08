@@ -31,5 +31,8 @@ export async function cleanDatabase(prisma: PrismaService): Promise<void> {
   await prisma.rolePermission.deleteMany()
   await prisma.permission.deleteMany()
   await prisma.role.deleteMany()
+  await prisma.commission.deleteMany()
+  await prisma.withdrawal.deleteMany()
+  await prisma.affiliate.deleteMany()
   await prisma.user.deleteMany()
 }

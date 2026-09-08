@@ -26,6 +26,7 @@ export interface CreateOrderProps {
   paymentMethod: PaymentMethod
   shipTo: ShipTo
   freightServiceId?: number | null
+  referralCode?: string | null
   paymentId?: string | null
 }
 
@@ -41,6 +42,7 @@ export interface ReconstructOrderProps {
   paymentMethod: PaymentMethod
   shipTo: ShipTo
   freightServiceId: number | null
+  referralCode: string | null
   paidAt: Date | null
   shippedAt: Date | null
   deliveredAt: Date | null
@@ -81,6 +83,7 @@ export class Order {
     private readonly _paymentMethod: PaymentMethod,
     private readonly _shipTo: ShipTo,
     private _freightServiceId: number | null,
+    private readonly _referralCode: string | null,
     private _paidAt: Date | null,
     private _shippedAt: Date | null,
     private _deliveredAt: Date | null,
@@ -115,6 +118,7 @@ export class Order {
       props.paymentMethod,
       props.shipTo,
       freightServiceId,
+      props.referralCode ?? null,
       null,
       null,
       null,
@@ -138,6 +142,7 @@ export class Order {
       props.paymentMethod,
       props.shipTo,
       props.freightServiceId,
+      props.referralCode,
       props.paidAt,
       props.shippedAt,
       props.deliveredAt,
@@ -236,6 +241,9 @@ export class Order {
   }
   get freightServiceId(): number | null {
     return this._freightServiceId
+  }
+  get referralCode(): string | null {
+    return this._referralCode
   }
   get paidAt(): Date | null {
     return this._paidAt

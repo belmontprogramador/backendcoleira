@@ -20,6 +20,7 @@ export const checkoutSchema = z
     payerIdentificationNumber: z.string().min(1).optional(),
     payerFirstName: z.string().min(1).optional(),
     payerLastName: z.string().min(1).optional(),
+    referralCode: z.string().trim().min(3).max(32).optional(),
   })
   .refine(data => data.paymentMethod !== 'CARD' || !!data.cardToken, {
     message: 'cardToken é obrigatório para pagamento com cartão',
