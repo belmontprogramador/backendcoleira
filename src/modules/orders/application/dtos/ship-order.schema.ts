@@ -15,6 +15,7 @@ export const shipOrderSchema = z
     tracking: z.string().trim().min(1).optional(),
     trackingUrl: z.string().trim().min(1).optional(),
     labelUrl: z.string().trim().min(1).optional(),
+    document: z.string().trim().min(11).max(18).optional(),
   })
   .refine(
     data => {

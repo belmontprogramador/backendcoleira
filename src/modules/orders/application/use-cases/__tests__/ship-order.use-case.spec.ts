@@ -157,6 +157,28 @@ describe('ShipOrderUseCase', () => {
     ).rejects.toThrow(OrderFreightError)
   })
 
+  it('envia o CPF do destinatário do input quando o pedido não o tem', async () => {
+    const { orders, shipping, useCase } = makeSut()
+    orders.findById.mockResolvedValue(makePaidOrder(1))
+    shipping.createShipment.mockResolvedValue({
+      orderId: 'me-auto',
+      protocol: 'P-auto',
+    })
+    shipping.printLabel.mockResolvedValue('https://label/auto')
+
+    await useCase.execute({
+      orderId: 'ord-1',
+      actorId: 'admin-1',
+      document: '05596752088',
+    })
+
+    expect(shipping.createShipment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: expect.objectContaining({ document: '05596752088' }),
+      }),
+    )
+  })
+
   it('lança OrderNotFoundError se o pedido não existe', async () => {
     const { orders, useCase } = makeSut()
     orders.findById.mockResolvedValue(null)

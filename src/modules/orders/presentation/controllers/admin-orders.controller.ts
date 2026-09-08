@@ -74,6 +74,7 @@ export class AdminOrdersController {
       tracking: body.tracking,
       trackingUrl: body.trackingUrl,
       labelUrl: body.labelUrl,
+      document: body.document,
     })
   }
 

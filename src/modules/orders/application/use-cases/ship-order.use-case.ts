@@ -39,6 +39,11 @@ export interface ShipOrderInput {
   tracking?: string
   trackingUrl?: string
   labelUrl?: string
+  /**
+   * CPF do destinatário, usado para sobrescrever o `ShipTo.document` quando o
+   * pedido foi criado sem CPF (a Melhor Envio exige CPF/CNPJ do destinatário).
+   */
+  document?: string
 }
 
 export interface ShipOrderResult {
@@ -92,7 +97,7 @@ export class ShipOrderUseCase {
 
     const hasManual = !!(input.meOrderId && input.protocol && input.serviceId)
     if (!hasManual) {
-      const generated = await this.generateShipment(order)
+      const generated = await this.generateShipment(order, input.document)
       meOrderId = generated.meOrderId
       protocol = generated.protocol
       serviceId = generated.serviceId
@@ -140,7 +145,10 @@ export class ShipOrderUseCase {
    * Gera a etiqueta na Melhor Envio a partir do serviço de frete e do endereço
    * do pedido (carrinho → pagamento → geração → impressão).
    */
-  private async generateShipment(order: Order): Promise<{
+  private async generateShipment(
+    order: Order,
+    document?: string,
+  ): Promise<{
     meOrderId: string
     protocol: string
     serviceId: number
@@ -156,7 +164,7 @@ export class ShipOrderUseCase {
     const created = await this.shipping.createShipment({
       service: serviceId,
       from: this.origin,
-      to: this.toAddress(order),
+      to: this.toAddress(order, document),
       products: [
         {
           ...PINGENTE_PACKAGE,
@@ -180,13 +188,14 @@ export class ShipOrderUseCase {
     }
   }
 
-  private toAddress(order: Order): ShippingAddress {
+  private toAddress(order: Order, document?: string): ShippingAddress {
     const s = order.shipTo
+    const doc = document?.trim() || s.document
     return {
       name: s.name,
       phone: s.phone,
       email: '',
-      ...(s.document ? { document: s.document } : {}),
+      ...(doc ? { document: doc } : {}),
       postalCode: s.postalCode,
       address: s.street,
       number: s.number,
