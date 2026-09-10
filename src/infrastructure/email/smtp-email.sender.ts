@@ -95,12 +95,14 @@ export class SmtpEmailSender implements EmailSenderPort {
     const text =
       'Olá!\n\n' +
       'Recebemos um pedido para redefinir sua senha.\n\n' +
-      'Acesse o link abaixo para criar uma nova senha:\n\n' +
+      `Seu código de redefinição: ${token}\n\n` +
+      'Ou acesse o link abaixo para criar uma nova senha:\n' +
       `${link}\n\n` +
       'Se não foi você, ignore este e-mail.'
     const html =
       '<p>Olá!</p>' +
       '<p>Recebemos um pedido para redefinir sua senha.</p>' +
+      `<p>Seu código de redefinição: <code>${token}</code></p>` +
       `<p><a href="${link}">Redefinir senha</a></p>` +
       '<p>Se não foi você, ignore este e-mail.</p>'
     await this.send(to, subject, html, text)
