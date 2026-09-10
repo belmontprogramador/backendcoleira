@@ -174,6 +174,11 @@ export class ProcessPaymentWebhookUseCase {
         if (order.status === 'PENDING') {
           order.markPaid()
           await this.orders.save(order)
+          await this.affiliateCommission.attributeOrder({
+            orderId: order.id,
+            referralCode: order.referralCode,
+            baseAmountCents: order.unitPrice.amountInCents * order.quantity,
+          })
           await this.audit.log({
             userId: order.buyerId,
             action: 'order_paid',
@@ -192,6 +197,7 @@ export class ProcessPaymentWebhookUseCase {
       return false
     }
 
+    const wasApproved = transaction.status === 'APPROVED'
     transaction.markApproved()
 
     if (transaction.planId) {
@@ -231,11 +237,15 @@ export class ProcessPaymentWebhookUseCase {
           metadata: { planId: plan.id, providerPaymentId },
         })
 
-        await this.affiliateCommission.attributeSubscription({
-          subscriptionId: subscription.id,
-          referralCode: transaction.referralCode,
-          baseAmountCents: plan.price.amountInCents,
-        })
+        // Só atribui comissão na primeira aprovação (evita duplicata em
+        // notificações repetidas do MP para o mesmo pagamento).
+        if (!wasApproved) {
+          await this.affiliateCommission.attributeSubscription({
+            subscriptionId: subscription.id,
+            referralCode: transaction.referralCode,
+            baseAmountCents: plan.price.amountInCents,
+          })
+        }
       }
     }
 

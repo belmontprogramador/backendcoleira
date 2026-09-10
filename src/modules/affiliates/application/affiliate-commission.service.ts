@@ -17,7 +17,8 @@ import { Commission } from '../domain/entities/commission.entity'
  * Implementação da `AFFILIATE_COMMISSION_PORT`.
  *
  * Resolve o afiliado ativo pelo `referralCode`, calcula a comissão com a config
- * snapshot do afiliado e persiste a `Commission`. Sem `referralCode` ou sem
+ * snapshot **específica da fonte** (venda usa `saleCommission`; assinatura usa
+ * `subscriptionCommission`) e persiste a `Commission`. Sem `referralCode` ou sem
  * afiliado ativo, não faz nada (venda sem indicação não gera comissão).
  */
 @Injectable()
@@ -40,13 +41,19 @@ export class AffiliateCommissionService implements AffiliateCommissionPort {
       return
     }
 
+    // Idempotência: uma venda gera no máximo uma comissão.
+    const existing = await this.commissions.findByOrderId(input.orderId)
+    if (existing) {
+      return
+    }
+
     const commission = Commission.create({
       id: randomUUID(),
       affiliateId: affiliate.id,
       source: 'ORDER',
       orderId: input.orderId,
       baseAmountCents: input.baseAmountCents,
-      commission: affiliate.commission,
+      commission: affiliate.saleCommission,
     })
 
     await this.commissions.save(commission)
@@ -81,7 +88,7 @@ export class AffiliateCommissionService implements AffiliateCommissionPort {
       source: 'SUBSCRIPTION',
       subscriptionId: input.subscriptionId,
       baseAmountCents: input.baseAmountCents,
-      commission: affiliate.commission,
+      commission: affiliate.subscriptionCommission,
     })
 
     await this.commissions.save(commission)

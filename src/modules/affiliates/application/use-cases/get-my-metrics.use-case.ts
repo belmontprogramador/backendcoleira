@@ -35,10 +35,8 @@ export class GetMyMetricsUseCase {
     ])
 
     return {
-      salesCount: agg.salesCount,
-      subscriptionsCount: agg.subscriptionsCount,
-      revenueCents: agg.revenueCents,
-      commissionTotalCents: agg.commissionTotalCents,
+      sales: agg.sales,
+      subscriptions: agg.subscriptions,
       availableCents: agg.availableCents - activeWithdrawals,
       withdrawnCents: paidWithdrawals,
     }

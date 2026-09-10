@@ -227,7 +227,43 @@ describe('ProcessPaymentWebhookUseCase', () => {
     expect(savedSub.userId).toBe('user-1')
     expect(savedSub.planId).toBe('plan-1')
     expect(transactions.save).toHaveBeenCalled()
+    expect(affiliateCommission.attributeSubscription).toHaveBeenCalledWith({
+      subscriptionId: expect.any(String),
+      referralCode: null,
+      baseAmountCents: 1990,
+    })
     expect(audit.log).toHaveBeenCalled()
+  })
+
+  it('approved: transação já aprovada não gera comissão duplicada (wasApproved)', async () => {
+    validator.validate.mockReturnValue(true)
+    webhookEvents.findByProviderEventId.mockResolvedValue(null)
+    gateway.getPayment.mockResolvedValue({
+      id: 'mp-123',
+      status: 'APPROVED',
+      paymentMethod: 'PIX',
+    })
+    const transaction = PaymentTransaction.create({
+      id: 'tx-1',
+      userId: 'user-1',
+      planId: 'plan-1',
+      provider: 'MERCADO_PAGO',
+      providerPaymentId: 'mp-123',
+      paymentMethod: 'PIX',
+      amount: Price.create(1990),
+      status: 'APPROVED',
+    })
+    transactions.findByProviderPaymentId.mockResolvedValue(transaction)
+    plans.findById.mockResolvedValue(makePlan())
+    subscriptions.findByUserId.mockResolvedValue(null)
+
+    await makeUseCase().execute(
+      { headers: {}, dataId: '', rawBody: paymentNotification() },
+      now,
+    )
+
+    expect(transaction.status).toBe('APPROVED')
+    expect(affiliateCommission.attributeSubscription).not.toHaveBeenCalled()
   })
 
   it('approved: renova assinatura existente estendendo o período', async () => {
@@ -341,6 +377,7 @@ describe('ProcessPaymentWebhookUseCase', () => {
       }),
       freightServiceId: 3,
       paymentId: 'mp-123',
+      referralCode: 'ana123',
     })
     orders.findByPaymentId.mockResolvedValue(order)
 
@@ -351,6 +388,11 @@ describe('ProcessPaymentWebhookUseCase', () => {
 
     expect(order.status).toBe('PAID')
     expect(orders.save).toHaveBeenCalledWith(order)
+    expect(affiliateCommission.attributeOrder).toHaveBeenCalledWith({
+      orderId: 'order-1',
+      referralCode: 'ana123',
+      baseAmountCents: 1990,
+    })
     expect(audit.log).toHaveBeenCalledWith(
       expect.objectContaining({
         action: 'order_paid',

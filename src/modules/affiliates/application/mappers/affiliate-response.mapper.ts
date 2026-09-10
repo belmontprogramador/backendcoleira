@@ -18,7 +18,8 @@ export interface AffiliateResponse {
   bankName: string | null
   bankAgency: string | null
   bankAccount: string | null
-  commission: AffiliateCommissionResponse
+  saleCommission: AffiliateCommissionResponse
+  subscriptionCommission: AffiliateCommissionResponse
   minWithdrawalCents: number
   status: string
   createdAt: Date
@@ -42,10 +43,15 @@ export class AffiliateResponseMapper {
       bankName: affiliate.bankName,
       bankAgency: affiliate.bankAgency,
       bankAccount: affiliate.bankAccount,
-      commission: {
-        type: affiliate.commission.type,
-        fixedCents: affiliate.commission.fixedCents,
-        percentBps: affiliate.commission.percentBps,
+      saleCommission: {
+        type: affiliate.saleCommission.type,
+        fixedCents: affiliate.saleCommission.fixedCents,
+        percentBps: affiliate.saleCommission.percentBps,
+      },
+      subscriptionCommission: {
+        type: affiliate.subscriptionCommission.type,
+        fixedCents: affiliate.subscriptionCommission.fixedCents,
+        percentBps: affiliate.subscriptionCommission.percentBps,
       },
       minWithdrawalCents: affiliate.minWithdrawalCents,
       status: affiliate.status,

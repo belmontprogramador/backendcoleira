@@ -21,9 +21,12 @@ export class AffiliateMapper {
     bank_name: string | null
     bank_agency: string | null
     bank_account: string | null
-    commission_type: CommissionType
-    commission_fixed_cents: number
-    commission_percent_bps: number
+    sale_commission_type: CommissionType
+    sale_commission_fixed_cents: number
+    sale_commission_percent_bps: number
+    subscription_commission_type: CommissionType
+    subscription_commission_fixed_cents: number
+    subscription_commission_percent_bps: number
     min_withdrawal_cents: number
     status: AffiliateStatus
     created_at: Date
@@ -41,9 +44,14 @@ export class AffiliateMapper {
       bank_name: affiliate.bankName,
       bank_agency: affiliate.bankAgency,
       bank_account: affiliate.bankAccount,
-      commission_type: affiliate.commission.type,
-      commission_fixed_cents: affiliate.commission.fixedCents,
-      commission_percent_bps: affiliate.commission.percentBps,
+      sale_commission_type: affiliate.saleCommission.type,
+      sale_commission_fixed_cents: affiliate.saleCommission.fixedCents,
+      sale_commission_percent_bps: affiliate.saleCommission.percentBps,
+      subscription_commission_type: affiliate.subscriptionCommission.type,
+      subscription_commission_fixed_cents:
+        affiliate.subscriptionCommission.fixedCents,
+      subscription_commission_percent_bps:
+        affiliate.subscriptionCommission.percentBps,
       min_withdrawal_cents: affiliate.minWithdrawalCents,
       status: affiliate.status,
       created_at: affiliate.createdAt,
@@ -64,10 +72,15 @@ export class AffiliateMapper {
       bankName: model.bank_name,
       bankAgency: model.bank_agency,
       bankAccount: model.bank_account,
-      commission: CommissionConfig.create({
-        type: model.commission_type,
-        fixedCents: model.commission_fixed_cents,
-        percentBps: model.commission_percent_bps,
+      saleCommission: CommissionConfig.create({
+        type: model.sale_commission_type,
+        fixedCents: model.sale_commission_fixed_cents,
+        percentBps: model.sale_commission_percent_bps,
+      }),
+      subscriptionCommission: CommissionConfig.create({
+        type: model.subscription_commission_type,
+        fixedCents: model.subscription_commission_fixed_cents,
+        percentBps: model.subscription_commission_percent_bps,
       }),
       minWithdrawalCents: model.min_withdrawal_cents,
       status: model.status,

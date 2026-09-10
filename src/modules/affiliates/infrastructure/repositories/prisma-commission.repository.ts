@@ -52,27 +52,34 @@ export class PrismaCommissionRepository implements CommissionRepositoryPort {
     affiliateId: string,
   ): Promise<CommissionAggregate> {
     const where = { affiliate_id: affiliateId }
-    const [salesCount, subscriptionsCount, totals, available] =
-      await Promise.all([
-        this.prisma.commission.count({ where: { ...where, source: 'ORDER' } }),
-        this.prisma.commission.count({
-          where: { ...where, source: 'SUBSCRIPTION' },
-        }),
-        this.prisma.commission.aggregate({
-          where,
-          _sum: { base_amount_cents: true, amount_cents: true },
-        }),
-        this.prisma.commission.aggregate({
-          where: { ...where, status: 'AVAILABLE' },
-          _sum: { amount_cents: true },
-        }),
-      ])
+    const [sales, subscriptions, available] = await Promise.all([
+      this.prisma.commission.aggregate({
+        where: { ...where, source: 'ORDER' },
+        _count: { _all: true },
+        _sum: { base_amount_cents: true, amount_cents: true },
+      }),
+      this.prisma.commission.aggregate({
+        where: { ...where, source: 'SUBSCRIPTION' },
+        _count: { _all: true },
+        _sum: { base_amount_cents: true, amount_cents: true },
+      }),
+      this.prisma.commission.aggregate({
+        where: { ...where, status: 'AVAILABLE' },
+        _sum: { amount_cents: true },
+      }),
+    ])
 
     return {
-      salesCount,
-      subscriptionsCount,
-      revenueCents: totals._sum.base_amount_cents ?? 0,
-      commissionTotalCents: totals._sum.amount_cents ?? 0,
+      sales: {
+        count: sales._count._all,
+        revenueCents: sales._sum.base_amount_cents ?? 0,
+        commissionCents: sales._sum.amount_cents ?? 0,
+      },
+      subscriptions: {
+        count: subscriptions._count._all,
+        revenueCents: subscriptions._sum.base_amount_cents ?? 0,
+        commissionCents: subscriptions._sum.amount_cents ?? 0,
+      },
       availableCents: available._sum.amount_cents ?? 0,
     }
   }

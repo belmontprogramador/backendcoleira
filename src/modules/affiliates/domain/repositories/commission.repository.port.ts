@@ -1,10 +1,16 @@
 import type { Commission } from '../entities/commission.entity'
 
 export interface CommissionAggregate {
-  salesCount: number
-  subscriptionsCount: number
-  revenueCents: number
-  commissionTotalCents: number
+  sales: {
+    count: number
+    revenueCents: number
+    commissionCents: number
+  }
+  subscriptions: {
+    count: number
+    revenueCents: number
+    commissionCents: number
+  }
   availableCents: number
 }
 

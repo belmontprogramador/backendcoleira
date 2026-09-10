@@ -83,17 +83,22 @@ describe('Affiliates (e2e)', () => {
         name: 'Ana Souza',
         email: 'ana@example.com',
         pixKey: 'ana@pix.com',
-        commissionType: 'PERCENTAGE',
-        commissionFixedCents: 0,
-        commissionPercentBps: 1000,
+        saleCommissionType: 'PERCENTAGE',
+        saleCommissionFixedCents: 0,
+        saleCommissionPercentBps: 1000,
+        subscriptionCommissionType: 'FIXED',
+        subscriptionCommissionFixedCents: 500,
+        subscriptionCommissionPercentBps: 0,
         minWithdrawalCents: 2000,
       })
       .expect(201)
 
     const affiliateId = (created.body as { id: string }).id
     expect((created.body as { code: string }).code).toBe('ana123')
-    expect((created.body as { commission: { percentBps: number } }).commission)
-      .toMatchObject({ percentBps: 1000 })
+    expect(
+      (created.body as { saleCommission: { percentBps: number } })
+        .saleCommission,
+    ).toMatchObject({ percentBps: 1000 })
 
     const list = await request(app.getHttpServer())
       .get('/admin/affiliates')
@@ -118,7 +123,7 @@ describe('Affiliates (e2e)', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200)
 
-    expect((metrics.body as { salesCount: number }).salesCount).toBe(0)
+    expect((metrics.body as { sales: { count: number } }).sales.count).toBe(0)
   })
 
   it('afiliado vê perfil, solicita saque e admin avança o status', async () => {

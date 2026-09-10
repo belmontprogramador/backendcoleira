@@ -46,17 +46,39 @@ export class UpdateAffiliateUseCase {
     })
 
     if (
-      dto.commissionType !== undefined ||
-      dto.commissionFixedCents !== undefined ||
-      dto.commissionPercentBps !== undefined
+      dto.saleCommissionType !== undefined ||
+      dto.saleCommissionFixedCents !== undefined ||
+      dto.saleCommissionPercentBps !== undefined
     ) {
-      affiliate.changeCommission(
+      affiliate.changeSaleCommission(
         CommissionConfig.create({
-          type: dto.commissionType ?? affiliate.commission.type,
+          type: dto.saleCommissionType ?? affiliate.saleCommission.type,
           fixedCents:
-            dto.commissionFixedCents ?? affiliate.commission.fixedCents,
+            dto.saleCommissionFixedCents ??
+            affiliate.saleCommission.fixedCents,
           percentBps:
-            dto.commissionPercentBps ?? affiliate.commission.percentBps,
+            dto.saleCommissionPercentBps ??
+            affiliate.saleCommission.percentBps,
+        }),
+      )
+    }
+
+    if (
+      dto.subscriptionCommissionType !== undefined ||
+      dto.subscriptionCommissionFixedCents !== undefined ||
+      dto.subscriptionCommissionPercentBps !== undefined
+    ) {
+      affiliate.changeSubscriptionCommission(
+        CommissionConfig.create({
+          type:
+            dto.subscriptionCommissionType ??
+            affiliate.subscriptionCommission.type,
+          fixedCents:
+            dto.subscriptionCommissionFixedCents ??
+            affiliate.subscriptionCommission.fixedCents,
+          percentBps:
+            dto.subscriptionCommissionPercentBps ??
+            affiliate.subscriptionCommission.percentBps,
         }),
       )
     }

@@ -69,10 +69,15 @@ export class CreateAffiliateUseCase {
       await this.email.sendAdminPasswordResetEmail(input.email, tempPassword)
     }
 
-    const commission = CommissionConfig.create({
-      type: input.commissionType,
-      fixedCents: input.commissionFixedCents,
-      percentBps: input.commissionPercentBps,
+    const saleCommission = CommissionConfig.create({
+      type: input.saleCommissionType,
+      fixedCents: input.saleCommissionFixedCents,
+      percentBps: input.saleCommissionPercentBps,
+    })
+    const subscriptionCommission = CommissionConfig.create({
+      type: input.subscriptionCommissionType,
+      fixedCents: input.subscriptionCommissionFixedCents,
+      percentBps: input.subscriptionCommissionPercentBps,
     })
 
     const affiliate = Affiliate.create({
@@ -87,7 +92,8 @@ export class CreateAffiliateUseCase {
       bankName: input.bankName ?? null,
       bankAgency: input.bankAgency ?? null,
       bankAccount: input.bankAccount ?? null,
-      commission,
+      saleCommission,
+      subscriptionCommission,
       minWithdrawalCents: input.minWithdrawalCents,
     })
 

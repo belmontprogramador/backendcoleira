@@ -16,8 +16,10 @@ describe('Affiliate', () => {
       expect(a.code).toBe('ana123')
       expect(a.status).toBe('ACTIVE')
       expect(a.minWithdrawalCents).toBe(0)
-      expect(a.commission.type).toBe('PERCENTAGE')
-      expect(a.commission.percentBps).toBe(0)
+      expect(a.saleCommission.type).toBe('PERCENTAGE')
+      expect(a.saleCommission.percentBps).toBe(0)
+      expect(a.subscriptionCommission.type).toBe('PERCENTAGE')
+      expect(a.subscriptionCommission.percentBps).toBe(0)
       expect(a.userId).toBeNull()
     })
 
@@ -76,15 +78,17 @@ describe('Affiliate', () => {
       expect(a.isActive()).toBe(true)
     })
 
-    it('changeCommission substitui a config', () => {
+    it('changeSaleCommission/changeSubscriptionCommission substituem a config', () => {
       const a = Affiliate.create(base)
       const cfg = CommissionConfig.create({
         type: 'FIXED',
         fixedCents: 999,
         percentBps: 0,
       })
-      a.changeCommission(cfg)
-      expect(a.commission.equals(cfg)).toBe(true)
+      a.changeSaleCommission(cfg)
+      expect(a.saleCommission.equals(cfg)).toBe(true)
+      a.changeSubscriptionCommission(cfg)
+      expect(a.subscriptionCommission.equals(cfg)).toBe(true)
     })
 
     it('changeMinWithdrawal rejeita negativo', () => {

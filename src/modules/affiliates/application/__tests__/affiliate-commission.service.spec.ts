@@ -38,15 +38,21 @@ describe('AffiliateCommissionService', () => {
     code: 'ana123',
     name: 'Ana',
     email: 'ana@example.com',
-    commission: CommissionConfig.create({
+    saleCommission: CommissionConfig.create({
       type: 'PERCENTAGE',
       fixedCents: 0,
       percentBps: 1000, // 10%
+    }),
+    subscriptionCommission: CommissionConfig.create({
+      type: 'FIXED',
+      fixedCents: 500,
+      percentBps: 0,
     }),
   })
 
   it('attributeOrder cria comissão com config snapshot', async () => {
     affiliates.findByCode.mockResolvedValue(affiliate)
+    commissions.findByOrderId.mockResolvedValue(null)
     commissions.save.mockImplementation(async c => c)
 
     await service.attributeOrder({
@@ -60,6 +66,43 @@ describe('AffiliateCommissionService', () => {
     const saved = commissions.save.mock.calls[0][0] as Commission
     expect(saved.amountCents).toBe(199)
     expect(saved.source).toBe('ORDER')
+  })
+
+  it('attributeOrder é idempotente (não duplica comissão de venda)', async () => {
+    affiliates.findByCode.mockResolvedValue(affiliate)
+    commissions.findByOrderId.mockResolvedValue(
+      Commission.create({
+        id: 'com-existing',
+        affiliateId: 'aff-1',
+        source: 'ORDER',
+        orderId: 'ord-1',
+        baseAmountCents: 1990,
+        commission: affiliate.saleCommission,
+      }),
+    )
+
+    await service.attributeOrder({
+      orderId: 'ord-1',
+      referralCode: 'ana123',
+      baseAmountCents: 1990,
+    })
+
+    expect(commissions.save).not.toHaveBeenCalled()
+  })
+
+  it('attributeSubscription usa a config de assinatura', async () => {
+    affiliates.findByCode.mockResolvedValue(affiliate)
+    commissions.save.mockImplementation(async c => c)
+
+    await service.attributeSubscription({
+      subscriptionId: 'sub-1',
+      referralCode: 'ana123',
+      baseAmountCents: 4900,
+    })
+
+    const saved = commissions.save.mock.calls[0][0] as Commission
+    expect(saved.amountCents).toBe(500)
+    expect(saved.source).toBe('SUBSCRIPTION')
   })
 
   it('attributeOrder não faz nada sem referralCode', async () => {
@@ -97,7 +140,7 @@ describe('AffiliateCommissionService', () => {
       source: 'ORDER',
       orderId: 'ord-1',
       baseAmountCents: 1990,
-      commission: affiliate.commission,
+      commission: affiliate.saleCommission,
     })
     commissions.findByOrderId.mockResolvedValue(commission)
     commissions.save.mockImplementation(async c => c)

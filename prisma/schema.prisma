@@ -692,9 +692,12 @@ model Affiliate {
   bank_name              String?
   bank_agency            String?
   bank_account           String?
-  commission_type        CommissionType  @default(PERCENTAGE)
-  commission_fixed_cents Int             @default(0)
-  commission_percent_bps Int             @default(0)
+  sale_commission_type        CommissionType  @default(PERCENTAGE)
+  sale_commission_fixed_cents Int             @default(0)
+  sale_commission_percent_bps Int             @default(0)
+  subscription_commission_type        CommissionType  @default(PERCENTAGE)
+  subscription_commission_fixed_cents Int             @default(0)
+  subscription_commission_percent_bps Int             @default(0)
   min_withdrawal_cents   Int             @default(0)
   status                 AffiliateStatus @default(ACTIVE)
   created_at             DateTime        @default(now())

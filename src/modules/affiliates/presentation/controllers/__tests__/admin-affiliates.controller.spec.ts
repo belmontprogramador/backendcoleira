@@ -65,16 +65,20 @@ describe('AdminAffiliatesController', () => {
       code: 'ana123',
       name: 'Ana',
       email: 'ana@example.com',
-      commissionType: 'PERCENTAGE',
-      commissionFixedCents: 0,
-      commissionPercentBps: 1000,
+      saleCommissionType: 'PERCENTAGE',
+      saleCommissionFixedCents: 0,
+      saleCommissionPercentBps: 1000,
+      subscriptionCommissionType: 'FIXED',
+      subscriptionCommissionFixedCents: 500,
+      subscriptionCommissionPercentBps: 0,
       minWithdrawalCents: 0,
     }
 
     const result = await controller.create(body)
 
     expect(result.code).toBe('ana123')
-    expect(result.commission.percentBps).toBe(0)
+    expect(result.saleCommission.percentBps).toBe(0)
+    expect(result.subscriptionCommission.fixedCents).toBe(0)
     expect(createUseCase.execute).toHaveBeenCalledWith(body)
   })
 
@@ -101,17 +105,15 @@ describe('AdminAffiliatesController', () => {
   it('metrics delega ao use case', async () => {
     const { controller, metricsUseCase } = makeSut()
     metricsUseCase.execute.mockResolvedValue({
-      salesCount: 1,
-      subscriptionsCount: 0,
-      revenueCents: 1990,
-      commissionTotalCents: 199,
+      sales: { count: 1, revenueCents: 1990, commissionCents: 199 },
+      subscriptions: { count: 0, revenueCents: 0, commissionCents: 0 },
       availableCents: 199,
       withdrawnCents: 0,
     })
 
     const result = await controller.metrics('aff-1')
 
-    expect(result.salesCount).toBe(1)
+    expect(result.sales.count).toBe(1)
     expect(metricsUseCase.execute).toHaveBeenCalledWith('aff-1')
   })
 

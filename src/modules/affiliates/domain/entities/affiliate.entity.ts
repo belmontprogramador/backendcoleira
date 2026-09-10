@@ -11,6 +11,9 @@ export class InvalidAffiliateError extends DomainError {
 /** Referral code é um slug minúsculo de 3 a 32 chars (letras, dígitos, hífen). */
 export const AFFILIATE_CODE_PATTERN = /^[a-z0-9-]{3,32}$/
 
+const DEFAULT_COMMISSION = (): CommissionConfig =>
+  CommissionConfig.create({ type: 'PERCENTAGE', fixedCents: 0, percentBps: 0 })
+
 export interface CreateAffiliateProps {
   id: string
   userId?: string | null
@@ -23,7 +26,10 @@ export interface CreateAffiliateProps {
   bankName?: string | null
   bankAgency?: string | null
   bankAccount?: string | null
-  commission?: CommissionConfig
+  /** Comissão sobre a venda do pingente (base sem frete). */
+  saleCommission?: CommissionConfig
+  /** Comissão sobre cada ciclo pago de assinatura (preço do plano). */
+  subscriptionCommission?: CommissionConfig
   minWithdrawalCents?: number
   status?: AffiliateStatus
 }
@@ -40,7 +46,8 @@ export interface ReconstructAffiliateProps {
   bankName: string | null
   bankAgency: string | null
   bankAccount: string | null
-  commission: CommissionConfig
+  saleCommission: CommissionConfig
+  subscriptionCommission: CommissionConfig
   minWithdrawalCents: number
   status: AffiliateStatus
   createdAt: Date
@@ -51,7 +58,8 @@ export interface ReconstructAffiliateProps {
  * Entidade `Affiliate` — identidade de um afiliado de vendas.
  *
  * `code` é o referral code definido pelo admin (slug único), imutável após a
- * criação. A configuração de comissão e o piso de saque são editáveis.
+ * criação. As configurações de comissão (venda e assinatura, independentes) e
+ * o piso de saque são editáveis.
  */
 export class Affiliate {
   private constructor(
@@ -66,7 +74,8 @@ export class Affiliate {
     private _bankName: string | null,
     private _bankAgency: string | null,
     private _bankAccount: string | null,
-    private _commission: CommissionConfig,
+    private _saleCommission: CommissionConfig,
+    private _subscriptionCommission: CommissionConfig,
     private _minWithdrawalCents: number,
     private _status: AffiliateStatus,
     private readonly _createdAt: Date,
@@ -109,7 +118,8 @@ export class Affiliate {
       props.bankName ?? null,
       props.bankAgency ?? null,
       props.bankAccount ?? null,
-      props.commission ?? CommissionConfig.create({ type: 'PERCENTAGE', fixedCents: 0, percentBps: 0 }),
+      props.saleCommission ?? DEFAULT_COMMISSION(),
+      props.subscriptionCommission ?? DEFAULT_COMMISSION(),
       minWithdrawal,
       props.status ?? 'ACTIVE',
       now,
@@ -130,7 +140,8 @@ export class Affiliate {
       props.bankName,
       props.bankAgency,
       props.bankAccount,
-      props.commission,
+      props.saleCommission,
+      props.subscriptionCommission,
       props.minWithdrawalCents,
       props.status,
       props.createdAt,
@@ -160,8 +171,13 @@ export class Affiliate {
     this.touch()
   }
 
-  changeCommission(config: CommissionConfig): void {
-    this._commission = config
+  changeSaleCommission(config: CommissionConfig): void {
+    this._saleCommission = config
+    this.touch()
+  }
+
+  changeSubscriptionCommission(config: CommissionConfig): void {
+    this._subscriptionCommission = config
     this.touch()
   }
 
@@ -176,7 +192,7 @@ export class Affiliate {
   }
 
   /**
-   * Atualiza os dados editáveis do afiliado. Não mexe em `code`, comissão,
+   * Atualiza os dados editáveis do afiliado. Não mexe em `code`, comissões,
    * piso ou status (esses têm métodos próprios).
    */
   updateDetails(props: {
@@ -265,8 +281,11 @@ export class Affiliate {
   get bankAccount(): string | null {
     return this._bankAccount
   }
-  get commission(): CommissionConfig {
-    return this._commission
+  get saleCommission(): CommissionConfig {
+    return this._saleCommission
+  }
+  get subscriptionCommission(): CommissionConfig {
+    return this._subscriptionCommission
   }
   get minWithdrawalCents(): number {
     return this._minWithdrawalCents

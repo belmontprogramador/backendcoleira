@@ -61,14 +61,14 @@ describe('Affiliate — repositório (integração)', () => {
     expect(created.id).toBe(AFF1)
     expect(created.code).toBe('a-ana123')
 
-    created.changeCommission(
+    created.changeSaleCommission(
       CommissionConfig.create({ type: 'FIXED', fixedCents: 500, percentBps: 0 }),
     )
     created.updateDetails({ name: 'Ana Souza' })
 
     const updated = await repo.save(created)
     expect(updated.name).toBe('Ana Souza')
-    expect(updated.commission.fixedCents).toBe(500)
+    expect(updated.saleCommission.fixedCents).toBe(500)
   })
 
   it('findByCode / findByEmail / findByUserId / findById', async () => {

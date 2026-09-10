@@ -1,8 +1,11 @@
 import { z } from 'zod'
 import { COMMISSION_TYPE_VALUES } from './create-affiliate.schema'
 
+const commissionTypeEnum = z.enum(COMMISSION_TYPE_VALUES)
+
 /**
  * Campos editáveis de um afiliado pelo admin. `code` é imutável.
+ * A comissão é editável de forma independente para venda e assinatura.
  */
 export const updateAffiliateSchema = z
   .object({
@@ -14,9 +17,12 @@ export const updateAffiliateSchema = z
     bankName: z.string().trim().max(100).nullable().optional(),
     bankAgency: z.string().trim().max(20).nullable().optional(),
     bankAccount: z.string().trim().max(20).nullable().optional(),
-    commissionType: z.enum(COMMISSION_TYPE_VALUES).optional(),
-    commissionFixedCents: z.number().int().min(0).optional(),
-    commissionPercentBps: z.number().int().min(0).optional(),
+    saleCommissionType: commissionTypeEnum.optional(),
+    saleCommissionFixedCents: z.number().int().min(0).optional(),
+    saleCommissionPercentBps: z.number().int().min(0).optional(),
+    subscriptionCommissionType: commissionTypeEnum.optional(),
+    subscriptionCommissionFixedCents: z.number().int().min(0).optional(),
+    subscriptionCommissionPercentBps: z.number().int().min(0).optional(),
     minWithdrawalCents: z.number().int().min(0).optional(),
   })
   .refine(d => Object.keys(d).length > 0, {

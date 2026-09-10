@@ -63,9 +63,12 @@ describe('CreateAffiliateUseCase', () => {
     name: 'Ana Souza',
     email: 'ana@example.com',
     pixKey: 'ana@pix.com',
-    commissionType: 'PERCENTAGE' as const,
-    commissionFixedCents: 0,
-    commissionPercentBps: 1000,
+    saleCommissionType: 'PERCENTAGE' as const,
+    saleCommissionFixedCents: 0,
+    saleCommissionPercentBps: 1000,
+    subscriptionCommissionType: 'FIXED' as const,
+    subscriptionCommissionFixedCents: 500,
+    subscriptionCommissionPercentBps: 0,
     minWithdrawalCents: 2000,
   }
 
@@ -81,7 +84,8 @@ describe('CreateAffiliateUseCase', () => {
     const result = await useCase.execute(dto)
 
     expect(result.code).toBe('ana123')
-    expect(result.commission.percentBps).toBe(1000)
+    expect(result.saleCommission.percentBps).toBe(1000)
+    expect(result.subscriptionCommission.fixedCents).toBe(500)
     expect(result.minWithdrawalCents).toBe(2000)
     expect(users.save).toHaveBeenCalled()
     expect(email.sendAdminPasswordResetEmail).toHaveBeenCalledWith(
